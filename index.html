@@ -912,6 +912,18 @@ body.animating.rarity-75 .warp-field,body.animating.rarity-100 .warp-field{backg
 body.animating.rarity-100 .flight-callout{color:#fff2b2;text-shadow:0 0 18px #fbbf24,0 0 46px #a855f7,0 3px 20px #000}
 @media (prefers-reduced-motion:reduce){.ship-wrap.flight-burn,.warp-field,.impact-ring,.singularity-flash,.planet-obj,.space-stage:before,.space-stage:after{animation:none!important}.flight-callout{animation:none!important}}
 
+
+.answer-review { display:block; }
+.answer-review > summary { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; cursor:pointer; list-style:none; }
+.answer-review > summary::-webkit-details-marker { display:none; }
+.answer-review > summary:after { content:"＋ VIEW ANSWERS"; grid-column:1 / -1; color:var(--cyan); font-size:10px; font-weight:800; letter-spacing:.08em; }
+.answer-review[open] > summary:after { content:"− HIDE ANSWERS"; }
+.answerbank { max-height:360px; overflow:auto; margin-top:12px; padding:8px 10px; border:1px solid rgba(148,163,184,.18); border-radius:12px; background:rgba(2,6,23,.28); }
+.answerbank-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:7px 2px; border-bottom:1px solid rgba(148,163,184,.10); font-size:12px; }
+.answerbank-row:last-child { border-bottom:0; }
+.answerbank-row small { color:var(--muted,#94a3b8); white-space:nowrap; }
+.answerbank-row.mine { color:#67e8f9; font-weight:800; }
+.you-tag { margin-left:5px; font-size:9px; letter-spacing:.05em; color:#67e8f9; }
 </style>
 </head>
 <body>
@@ -1179,6 +1191,7 @@ body.animating.rarity-100 .flight-callout{color:#fff2b2;text-shadow:0 0 18px #fb
 <div class="toast" id="toast"></div>
 
 <script src="brands_data.js"></script>
+<script src="prepared_challenges.js"></script>
 <script>
 const ROUND_SECONDS = 25, TOTAL_ROUNDS = 7, MILES_PER_POINT = 1000;
 
@@ -1656,18 +1669,22 @@ function getTodayKey(){
 }
 
 function getDailyRoundSet(pool){
-  // Use every distinct prompt once per cycle before starting a new shuffled cycle.
+  const prepared = window.BLASTOFF_PREPARED;
+  const ids = prepared?.days?.[getTodayKey()];
+  if(Array.isArray(ids) && ids.length === TOTAL_ROUNDS && prepared.questions){
+    const fixedRounds = ids.map(id => prepared.questions[id]).filter(Boolean);
+    if(fixedRounds.length === TOTAL_ROUNDS){
+      return fixedRounds.map(q => ({...q,answerList:q.answers,brands:Object.fromEntries(q.answers.map(a=>[a.name,a.points]))}));
+    }
+  }
   const uniquePool = [...new Map(pool.map(item => [item.q, item])).values()];
   const cycleDays = Math.floor(uniquePool.length / TOTAL_ROUNDS);
   if(cycleDays < 1) return pickDistinctRounds(uniquePool);
-
   const [year, month, day] = getTodayKey().split("-").map(Number);
   const dayNumber = Math.floor(Date.UTC(year, month - 1, day) / 86400000);
   const cycleNumber = Math.floor(dayNumber / cycleDays);
   const dayInCycle = dayNumber % cycleDays;
-
-  // Each complete cycle contains exactly seven-question daily sets.
-  const deck = shuffle(uniquePool, hashDateString("ballistic-daily-cycle-" + cycleNumber));
+  const deck = shuffle(uniquePool, hashDateString("blastoff-daily-cycle-" + cycleNumber));
   const usableDeck = deck.slice(0, cycleDays * TOTAL_ROUNDS);
   const start = dayInCycle * TOTAL_ROUNDS;
   return usableDeck.slice(start, start + TOTAL_ROUNDS);
@@ -1944,6 +1961,7 @@ function startGame(which){
       mode = "daily";
       totalMiles = saved.totalMiles;
       answers = saved.answers;
+      rounds = getDailyRoundSet(categories);
       renderResultsScreen(true);
       toast("Showing today's locked-in Daily Mission!");
       return;
@@ -2032,51 +2050,42 @@ function isCloseMatch(inputNorm, brandNorm){
 }
 
 function lookupLocal(c, answer){
-  let target = normalize(answer);
+  const target = normalize(answer);
   if(!target) return null;
-  target = ALIASES[target] || target;
-
-  const entries = Object.entries(c.brands);
-  const exactIn = list => {
-    for(const [name, rawPts] of list){
-      const key = ALIASES[normalize(name)] || normalize(name);
-      if(key === target) return {exact:true, name, points:snapToCosmicTier(rawPts), source:"local"};
+  if(Array.isArray(c.answerList)){
+    let exact = null; const candidates = [];
+    for(const item of c.answerList){
+      const names = [item.name, ...(item.aliases || [])];
+      const normalizedNames = [...new Set(names.map(normalize).filter(Boolean))];
+      if(normalizedNames.some(n => n === target || (ALIASES[n] || n) === (ALIASES[target] || target))){
+        exact = {exact:true,name:item.name,points:item.points,source:"prepared"}; break;
+      }
+      let bestDist = Infinity;
+      for(const n of normalizedNames){
+        const dist = isCloseMatch(ALIASES[target] || target, ALIASES[n] || n);
+        if(dist && dist < bestDist) bestDist = dist;
+      }
+      if(bestDist < Infinity) candidates.push({exact:false,name:item.name,points:item.points,dist:bestDist,source:"prepared"});
     }
-    return null;
-  };
-  const direct = exactIn(entries);
-  if(direct) return direct;
-
-  // Some daily prompts are generated from a narrower data subset. Keep common
-  // restaurant answers valid whenever the wording clearly asks for a food chain.
-  if(/fast.?food|restaurant chain|food chain|quick.?service|convenience/i.test(c.q || "")){
-    const food = categories.find(cat => cat.baseKey === "fast_food");
-    if(food && food !== c){
-      const fallback = exactIn(Object.entries(food.brands));
-      if(fallback) return fallback;
-    }
+    if(exact) return exact;
+    candidates.sort((a,b)=>a.dist-b.dist);
+    if(!candidates.length || (candidates.length>1 && candidates[0].dist===candidates[1].dist)) return null;
+    return candidates[0];
   }
-
-  let candidates = [];
+  const canonicalTarget = ALIASES[target] || target;
+  const entries = Object.entries(c.brands || {});
   for(const [name, rawPts] of entries){
     const key = ALIASES[normalize(name)] || normalize(name);
-    const dist = isCloseMatch(target, key);
-    if(dist > 0) candidates.push({exact:false,name,points:snapToCosmicTier(rawPts),dist,source:"local"});
+    if(key === canonicalTarget) return {exact:true,name,points:snapToCosmicTier(rawPts),source:"local"};
   }
-  if(!candidates.length && /fast.?food|restaurant chain|food chain|quick.?service|convenience/i.test(c.q || "")){
-    const food = categories.find(cat => cat.baseKey === "fast_food");
-    if(food && food !== c){
-      for(const [name, rawPts] of Object.entries(food.brands)){
-        const key = ALIASES[normalize(name)] || normalize(name);
-        const dist = isCloseMatch(target,key);
-        if(dist > 0) candidates.push({exact:false,name,points:snapToCosmicTier(rawPts),dist,source:"local"});
-      }
-    }
+  const candidates=[];
+  for(const [name,rawPts] of entries){
+    const key=ALIASES[normalize(name)]||normalize(name),dist=isCloseMatch(canonicalTarget,key);
+    if(dist>0)candidates.push({exact:false,name,points:snapToCosmicTier(rawPts),dist,source:"local"});
   }
   candidates.sort((a,b)=>a.dist-b.dist);
-  // Only auto-correct when the best candidate is clearly closer than the runner-up.
-  if(candidates.length > 1 && candidates[0].dist === candidates[1].dist) return null;
-  return candidates[0] || null;
+  if(candidates.length>1&&candidates[0].dist===candidates[1].dist)return null;
+  return candidates[0]||null;
 }
 
 function lookupOtherLocalCategory(currentCategory, answer){
@@ -2357,6 +2366,7 @@ function handleTimeout(){
   const topInfo = getTopPercent(0, 35, 22);
   answers.push({
     question: c.q,
+    questionId: c.id,
     answer: "No burn (aborted / timed out)",
     brand: null,
     points: 0,
@@ -2446,6 +2456,7 @@ function confirmValidBrand(found){
   const topInfo = getTopPercent(pts, 35, 22);
   answers.push({
     question: c.q,
+    questionId: c.id,
     answer: found.name,
     brand: found.name,
     points: pts,
@@ -2492,40 +2503,10 @@ async function submitAnswer(raw=""){
   const token = roundToken;
 
   let found = lookupLocal(c, answer);
-
-  if(!found || !found.exact){
-    checking = true;
-    $("answer").disabled = true;
-    $("submitBtn").disabled = true;
-    $("submitBtn").textContent = "SCANNING...";
-    $("inputIcon").textContent = "◌";
-
-    const webMatch = await verifyBrandOnline(c, answer);
-    checking = false;
-
-    if(locked || token !== roundToken) return;
-
-    $("answer").disabled = false;
-    $("submitBtn").disabled = false;
-    $("submitBtn").textContent = "IGNITE ↗";
-    $("inputIcon").textContent = "⌕";
-
-    if(webMatch?.wrongCategory){
-      rejectAnswer(
-        answer,
-        `Doesn't fit this prompt (${webMatch.name}).`,
-        `<b>${escapeHtml(webMatch.name)}</b> didn’t match all criteria for “${escapeHtml(c.q)}”.`
-      );
-      return;
-    }
-
-    if(webMatch && webMatch.exact){
-      found = webMatch;
-    } else if(!found && webMatch){
-      found = webMatch;
-    }
+  if(!found){
+    rejectAnswer(answer);
+    return;
   }
-
   if(!found){
     rejectAnswer(answer);
     return;
@@ -2651,14 +2632,25 @@ function renderResultsScreen(isLockedRecap=false){
     return `<div class="ms ${ok ? "reached" : ""}"><b>${m.icon}</b>${m.name}<br><small>${ok ? "CLEARED" : m.label}</small></div>`;
   }).join("");
 
-  $("breakdown").innerHTML = answers.map((a, i)=>`
-    <div class="answeritem">
-      <div>
-        <b>Stage ${i+1}: ${escapeHtml(a.question)}</b>
-        <small>${escapeHtml(a.answer)}${a.brand ? ` · ${a.tierIcon} ${escapeHtml(a.tierName)} (${a.points} pts)` : ""}</small>
-      </div>
-      <strong>+${formatMiles(a.miles)} MI</strong>
-    </div>`).join("");
+  $("breakdown").innerHTML = answers.map((a, i)=>{
+    const round = rounds.find(r => r.id === a.questionId) || rounds[i];
+    const accepted = round?.answerList || round?.answers || [];
+    const submitted = normalize(a.brand || "");
+    const answerRows = accepted.map(item => {
+      const isMine = submitted && normalize(item.name) === submitted;
+      const tier = getTierInfo(item.points);
+      return `<div class="answerbank-row ${isMine ? "mine" : ""}">
+        <span>${escapeHtml(item.name)}${isMine ? ' <b class="you-tag">YOUR ANSWER</b>' : ""}</span>
+        <small>${tier.icon} ${escapeHtml(tier.name)} · ${item.points} pts</small>
+      </div>`;
+    }).join("");
+    return `<details class="answeritem answer-review">
+      <summary><div><b>Stage ${i+1}: ${escapeHtml(a.question)}</b>
+        <small>${escapeHtml(a.answer)}${a.brand ? ` · ${a.tierIcon} ${escapeHtml(a.tierName)} (${a.points} pts)` : ""} · ${accepted.length} accepted answers</small></div>
+        <strong>+${formatMiles(a.miles)} MI</strong></summary>
+      <div class="answerbank">${answerRows || "<small>Answer review unavailable for this older challenge.</small>"}</div>
+    </details>`;
+  }).join("");
 
   $("againBtn").textContent = "BACK TO DAILY CHALLENGE ↻";
 }

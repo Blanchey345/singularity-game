@@ -96,6 +96,7 @@ function cleanAnswers(items, bankKey) {
 
 // First use the hand-reviewed answer lists already in the game.
 for (const category of curatedCategories) {
+  if (category.baseKey === "sports_teams") continue;
   const items = [];
   for (const [name, rawPoints] of Object.entries(category.brands || {})) {
     const record = recordsByName.get(normalize(name));

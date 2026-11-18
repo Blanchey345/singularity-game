@@ -1670,13 +1670,31 @@ function getTodayKey(){
   return `${y}-${m}-${day}`;
 }
 
+function getPreparedAnswers(question){
+  const banks = window.BLASTOFF_PREPARED?.answerBanks || {};
+  const merged = new Map();
+  for(const category of question.sourceCategories || []){
+    for(const answer of (banks[category]?.answers || [])){
+      const key = normalize(answer.name);
+      if(!key) continue;
+      const current = merged.get(key);
+      if(!current) merged.set(key,{...answer,aliases:[...(answer.aliases || [])]});
+      else{
+        current.points = Math.min(current.points,answer.points);
+        current.aliases = [...new Set([...current.aliases,...(answer.aliases || [])])];
+      }
+    }
+  }
+  return [...merged.values()].map(answer=>({...answer,tier:getTierInfo(answer.points).name}));
+}
+
 function getDailyRoundSet(pool){
   const prepared = window.BLASTOFF_PREPARED;
   const ids = prepared?.days?.[getTodayKey()];
   if(Array.isArray(ids) && ids.length === TOTAL_ROUNDS && prepared.questions){
     const fixedRounds = ids.map(id => prepared.questions[id]).filter(Boolean);
     if(fixedRounds.length === TOTAL_ROUNDS){
-      return fixedRounds.map(q => ({...q,q:q.prompt,answerList:q.answers,brands:Object.fromEntries(q.answers.map(a=>[a.name,a.points]))}));
+      return fixedRounds.map(q => { const answers = getPreparedAnswers(q); return {...q,q:q.prompt,answerList:answers,brands:Object.fromEntries(answers.map(a=>[a.name,a.points]))}; });
     }
   }
   const uniquePool = [...new Map(pool.map(item => [item.q, item])).values()];

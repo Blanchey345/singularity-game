@@ -373,6 +373,7 @@ body.in-game .shell{
   box-shadow:0 9px 28px rgba(74, 222, 128, 0.34);
 }
 .secondary{background:rgba(18, 25, 56, 0.82);color:var(--text);border:1px solid var(--line)}
+.practicebtn{width:100%;margin-top:10px}
 .sharebtn{
   background:linear-gradient(100deg, #4ade80, #38bdf8);
   color:#041019;
@@ -1089,6 +1090,7 @@ body.animating.rarity-100 .flight-callout{color:#fff2b2;text-shadow:0 0 18px #fb
       </div>
 
       <button class="btn primary" id="startBtn">LAUNCH DAILY MISSION&nbsp; 🚀</button>
+      <button class="btn secondary practicebtn" id="practiceBtn">FREE FLIGHT PRACTICE&nbsp; ✦</button>
       <div class="daily-status" id="dailyStatus">
         <span>✓ Today’s official flight is locked in: <strong id="dailyLockedScore">0 MI</strong></span>
         <span>New prompts at midnight</span>
@@ -1710,6 +1712,25 @@ function getDailyRoundSet(pool){
   return usableDeck.slice(start, start + TOTAL_ROUNDS);
 }
 
+function getPracticeRoundSet(pool){
+  const prepared = window.BLASTOFF_PREPARED;
+  if(prepared?.questions && prepared.answerBanks){
+    const unique = [...new Map(Object.values(prepared.questions).map(q => [q.templateId, q])).values()];
+    const selected = shuffle(unique).slice(0, TOTAL_ROUNDS);
+    return selected.map(q => {
+      const answers = getPreparedAnswers(q);
+      return {
+        ...q,
+        id:"practice_" + q.templateId,
+        q:q.prompt,
+        answerList:answers,
+        brands:Object.fromEntries(answers.map(a => [a.name, a.points]))
+      };
+    });
+  }
+  return pickDistinctRounds(pool);
+}
+
 function hashDateString(str){
   let h = 2166136261 >>> 0;
   for(let i = 0; i < str.length; i++){
@@ -2008,6 +2029,8 @@ async function startGame(which){
       toast(error.message || "Unable to load the daily mission.");
       return;
     }
+  }else if(which === "practice"){
+    rounds = getPracticeRoundSet(categories);
   }else{
     rounds = pickDistinctRounds(categories);
   }
@@ -2383,7 +2406,7 @@ function renderResultsScreen(isLockedRecap=false){
   $("finalScore").innerHTML = `${formatMiles(totalMiles)} <span>MILES FROM EARTH</span>`;
   $("resultEyebrow").textContent = mode === "daily"
     ? (isLockedRecap ? "TODAY'S OFFICIAL DAILY FLIGHT · LOCKED IN" : "DAILY MISSION COMPLETE")
-    : "DAILY FLIGHT COMPLETE";
+    : mode === "practice" ? "FREE FLIGHT COMPLETE" : "DAILY FLIGHT COMPLETE";
 
   let title =
     totalMiles >= 450000 ? "Certified Interstellar Ball Knowledge." :
@@ -2493,6 +2516,7 @@ function escapeHtml(s){
 }
 
 $("startBtn").onclick = () => startGame("daily");
+$("practiceBtn").onclick = () => startGame("practice");
 $("answerForm").addEventListener("submit", e => { e.preventDefault(); if(locked){ advanceStage(); return; } submitAnswer($("answer").value); });
 $("answer").addEventListener("input", () => {
   if(pendingSuggestion) clearSuggestion(true);

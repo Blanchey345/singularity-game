@@ -1662,12 +1662,12 @@ let pendingSuggestion = null, lastShareText = "";
 // DAILY SEED & LOCALSTORAGE LOCK HELPERS (UPGRADE #3)
 // =========================================================
 function getTodayKey(){
-  // UTC keeps the daily challenge identical for players in every time zone.
-  const d = new Date();
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  // Match Krillion's midnight Eastern reset while keeping one shared date for everyone.
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone:"America/New_York", year:"numeric", month:"2-digit", day:"2-digit"
+  }).formatToParts(new Date());
+  const date = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${date.year}-${date.month}-${date.day}`;
 }
 
 function getPreparedAnswers(question){
@@ -2231,7 +2231,7 @@ function animateRocketFailure(){
 }
 
 function animateRocketBurn(found, tier, milesGained){
-  // Each rarity gets a longer flight; even the lowest tier lasts 3 seconds.
+  // Each rarity gets a longer flight, from 4.5 seconds to 12 seconds.
   const durations = {10:4500, 25:6000, 50:7500, 75:9500, 100:12000};
   const duration = durations[tier.points] || 3000;
   const rocket = $("rocketMarker");

@@ -1960,9 +1960,6 @@ function renderRound(){
   $("roundNum").textContent = `${idx+1} / ${TOTAL_ROUNDS}`;
   $("qIcon").textContent = c.icon;
   $("question").textContent = c.q;
-  $("qSub").textContent = c.isCombo
-    ? `Country challenge (${c.countryFilter}) — only brands from ${c.countryFilter} count!`
-    : "Dig into your bag. Rarer brands unlock higher cosmic tiers.";
 
   $("answer").value = "";
   $("answer").disabled = false;

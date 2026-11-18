@@ -4,6 +4,18 @@ function normalize(value){return String(value||"").toLowerCase().normalize("NFKD
 function distance(a,b){const row=Array.from({length:b.length+1},(_,i)=>i);for(let i=1;i<=a.length;i++){let prev=row[0];row[0]=i;for(let j=1;j<=b.length;j++){const old=row[j];row[j]=a[i-1]===b[j-1]?prev:1+Math.min(prev,row[j],row[j-1]);prev=old;}}return row[b.length];}
 function tier(points){return ({10:"Space Dust",25:"Satellite",50:"Nebula",75:"Supernova",100:"Singularity"})[points]||"Space Dust";}
 function validDate(value){return !value||/^\\d{4}-\\d{2}-\\d{2}$/.test(value);}
+function getAnswers(data,question){
+ const merged=new Map();
+ for(const category of question.sourceCategories||[]){
+  for(const answer of (data.answerBanks?.[category]?.answers||[])){
+   const key=normalize(answer.name);if(!key)continue;
+   const current=merged.get(key);
+   if(!current)merged.set(key,{...answer,aliases:[...(answer.aliases||[])]});
+   else{current.points=Math.min(current.points,answer.points);current.aliases=[...new Set([...current.aliases,...(answer.aliases||[])])];}
+  }
+ }
+ return [...merged.values()].map(answer=>({...answer,tier:tier(answer.points)}));
+}
 async function loadData(env){const raw=await env.CHALLENGE_DATA.get("prepared_challenges");return raw?JSON.parse(raw):null;}
 export default {
  async fetch(request,env){
@@ -23,7 +35,7 @@ export default {
     if(!q||!ids.includes(body.questionId))return json({error:"Question is not part of today's challenge."},400,origin);
     const shortcuts={mccdonalds:"mcdonalds",mcdonald:"mcdonalds"};const input=shortcuts[normalize(body.answer)]||normalize(body.answer);if(input.length<2)return json({accepted:false},200,origin);
     let suggestion=null,best=Infinity,tied=false;
-    for(const answer of q.answers){
+    for(const answer of getAnswers(data,q)){
      const names=[answer.name,...(answer.aliases||[])].map(normalize).map(n=>shortcuts[n]||n).filter(Boolean);
      if(names.includes(input))return json({accepted:true,name:answer.name,points:answer.points,tier:tier(answer.points)},200,origin);
      let dist=Infinity;for(const name of names)dist=Math.min(dist,distance(input,name));
@@ -36,7 +48,7 @@ export default {
    if(request.method==="GET"&&url.pathname==="/api/review"){
     const requested=(url.searchParams.get("ids")||"").split(",").filter(Boolean);
     if(!requested.length||requested.length>7||requested.some(id=>!ids.includes(id)))return json({error:"Invalid review request."},400,origin);
-    return json({date,questions:requested.map(id=>data.questions[id])},200,origin);
+    return json({date,questions:requested.map(id=>({...data.questions[id],answers:getAnswers(data,data.questions[id])}))},200,origin);
    }
    return json({error:"Not found"},404,origin);
   }catch(error){return json({error:"Server error",detail:env.ENVIRONMENT==="development"?String(error):undefined},500,origin);}

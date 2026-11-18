@@ -860,7 +860,22 @@ body.animating .shell { visibility:hidden; }
 body.animating .space-stage { z-index:50; }
 body.animating .flight-callout { opacity:1; animation:calloutIn .35s ease both; }
 @keyframes calloutIn { from { opacity:0; transform:translate(-50%,-42%); } to { opacity:1; transform:translate(-50%,-50%); } }
-@media (prefers-reduced-motion:reduce) { .ship-wrap.flight-burn { animation:none; } .flight-callout { animation:none !important; } }
+/* Cinematic flight effects: the starfield rushes past the ship. */
+.warp-field{position:absolute;inset:-35%;z-index:8;opacity:0;pointer-events:none;background:repeating-linear-gradient(102deg,transparent 0 42px,rgba(186,230,253,.72) 43px,transparent 45px 105px),repeating-linear-gradient(78deg,transparent 0 76px,rgba(167,139,250,.55) 77px,transparent 79px 150px);mask-image:linear-gradient(90deg,transparent 4%,#000 28%,#000 85%,transparent);transform:scaleX(.25)}
+body.animating .warp-field{opacity:.9;animation:warpRush var(--burn-duration,1.2s) cubic-bezier(.18,.72,.24,1) both}
+@keyframes warpRush{0%{transform:translateX(12%) scaleX(.18);opacity:0}18%{opacity:.95}72%{transform:translateX(-8%) scaleX(1.5);opacity:.9}100%{transform:translateX(-24%) scaleX(2.1);opacity:0}}
+.impact-ring{position:absolute;left:50%;top:48%;width:24px;height:24px;border:2px solid rgba(125,211,252,.95);border-radius:50%;opacity:0;z-index:9;box-shadow:0 0 28px rgba(56,189,248,.8),inset 0 0 18px rgba(56,189,248,.45);transform:translate(-50%,-50%) scale(.2)}
+body.animating .impact-ring{animation:impactPulse var(--burn-duration,1.2s) ease-out both}
+@keyframes impactPulse{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}24%{opacity:.9}100%{opacity:0;transform:translate(-50%,-50%) scale(22)}}
+.singularity-flash{position:absolute;inset:0;z-index:10;opacity:0;pointer-events:none;background:radial-gradient(circle at 68% 48%,rgba(255,245,190,.95),rgba(251,191,36,.34) 12%,rgba(168,85,247,.16) 35%,transparent 68%)}
+body.animating.rarity-100 .singularity-flash{animation:singularityFlash var(--burn-duration,3.1s) ease-out both}
+@keyframes singularityFlash{0%,100%{opacity:0}12%{opacity:1}30%{opacity:.45}}
+body.animating.rarity-100 .planet-obj{animation:planetReveal var(--burn-duration,3.1s) cubic-bezier(.16,.7,.2,1) both}
+@keyframes planetReveal{0%,45%{transform:translate(-50%,-50%) scale(1);filter:brightness(1)}78%{transform:translate(-50%,-50%) scale(2.4);filter:brightness(1.8) drop-shadow(0 0 34px #fbbf24)}100%{transform:translate(-50%,-50%) scale(1.35);filter:brightness(1.25)}}
+body.animating.rarity-75 .planet-obj,body.animating.rarity-100 .planet-obj{filter:drop-shadow(0 0 22px rgba(251,191,36,.8))}
+body.animating.rarity-75 .warp-field,body.animating.rarity-100 .warp-field{background:repeating-linear-gradient(102deg,transparent 0 30px,rgba(253,230,138,.85) 31px,transparent 34px 78px),repeating-linear-gradient(78deg,transparent 0 56px,rgba(196,181,253,.72) 57px,transparent 60px 120px)}
+body.animating.rarity-100 .flight-callout{color:#fff2b2;text-shadow:0 0 18px #fbbf24,0 0 46px #a855f7,0 3px 20px #000}
+@media (prefers-reduced-motion:reduce){.ship-wrap.flight-burn,.warp-field,.impact-ring,.singularity-flash,.planet-obj{animation:none!important}.flight-callout{animation:none!important}}
 
 </style>
 </head>
@@ -995,6 +1010,9 @@ body.animating .flight-callout { opacity:1; animation:calloutIn .35s ease both; 
       </svg>
     </div>
   </div>
+  <div class="warp-field" aria-hidden="true"></div>
+  <div class="impact-ring" aria-hidden="true"></div>
+  <div class="singularity-flash" aria-hidden="true"></div>
   <div class="flight-callout" id="flightCallout" aria-live="polite"></div>
 </div>
 
@@ -2340,18 +2358,20 @@ function animateRocketBurn(found, tier, milesGained){
   const duration = durations[tier.points] || 1200;
   const rocket = $("rocketMarker");
   const callout = $("flightCallout");
+  const rarityClass = `rarity-${tier.points}`;
   rocket.style.setProperty("--burn-duration", duration + "ms");
   rocket.classList.add("flight-burn");
+  document.body.style.setProperty("--burn-duration", duration + "ms");
+  document.body.classList.add("animating", rarityClass);
   callout.innerHTML = `${escapeHtml(found.name)}<small>${tier.icon} ${escapeHtml(tier.name)} · +${formatMiles(milesGained)} MILES</small>`;
-  document.body.classList.add("animating");
   updateTelemetry(true);
   window.setTimeout(() => {
     rocket.classList.remove("flight-burn");
-    document.body.classList.remove("animating");
+    document.body.classList.remove("animating", rarityClass);
+    document.body.style.removeProperty("--burn-duration");
     callout.innerHTML = "";
   }, duration);
 }
-
 function confirmValidBrand(found){
   if(locked) return;
   clearSuggestion(false);

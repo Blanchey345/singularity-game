@@ -1605,11 +1605,30 @@ let pendingSuggestion = null, lastShareText = "";
 // DAILY SEED & LOCALSTORAGE LOCK HELPERS (UPGRADE #3)
 // =========================================================
 function getTodayKey(){
+  // UTC keeps the daily challenge identical for players in every time zone.
   const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function getDailyRoundSet(pool){
+  // Use every distinct prompt once per cycle before starting a new shuffled cycle.
+  const uniquePool = [...new Map(pool.map(item => [item.q, item])).values()];
+  const cycleDays = Math.floor(uniquePool.length / TOTAL_ROUNDS);
+  if(cycleDays < 1) return pickDistinctRounds(uniquePool);
+
+  const [year, month, day] = getTodayKey().split("-").map(Number);
+  const dayNumber = Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+  const cycleNumber = Math.floor(dayNumber / cycleDays);
+  const dayInCycle = dayNumber % cycleDays;
+
+  // Each complete cycle contains exactly seven-question daily sets.
+  const deck = shuffle(uniquePool, hashDateString("ballistic-daily-cycle-" + cycleNumber));
+  const usableDeck = deck.slice(0, cycleDays * TOTAL_ROUNDS);
+  const start = dayInCycle * TOTAL_ROUNDS;
+  return usableDeck.slice(start, start + TOTAL_ROUNDS);
 }
 
 function hashDateString(str){
@@ -1897,8 +1916,9 @@ function startGame(which){
   }
 
   mode = which;
-  const seed = which === "daily" ? hashDateString(getTodayKey()) : null;
-  rounds = pickDistinctRounds(categories, seed);
+  rounds = which === "daily"
+    ? getDailyRoundSet(categories)
+    : pickDistinctRounds(categories);
   idx = 0;
   totalMiles = 0;
   answers = [];

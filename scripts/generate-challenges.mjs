@@ -157,7 +157,14 @@ if (uniqueTemplates.length < 35) {
   throw new Error("Only " + uniqueTemplates.length + " good question templates passed validation; refusing to publish a repetitive schedule.");
 }
 
-const startDate = process.env.BLASTOFF_START_DATE || new Date().toISOString().slice(0,10);
+function getNewYorkDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone:"America/New_York", year:"numeric", month:"2-digit", day:"2-digit"
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return values.year + "-" + values.month + "-" + values.day;
+}
+const startDate = process.env.BLASTOFF_START_DATE || getNewYorkDateKey();
 const parsedStartDate = new Date(startDate + "T00:00:00Z");
 if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
     Number.isNaN(parsedStartDate.getTime()) ||

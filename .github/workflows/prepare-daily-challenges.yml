@@ -1,6 +1,8 @@
 name: Prepare BLASTOFF daily challenges
 
 on:
+  push:
+    branches: [blastoff-development]
   workflow_dispatch:
   schedule:
     - cron: "17 5 * * *"

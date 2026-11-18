@@ -1191,9 +1191,11 @@ body.animating.rarity-100 .flight-callout{color:#fff2b2;text-shadow:0 0 18px #fb
 <div class="toast" id="toast"></div>
 
 <script src="brands_data.js"></script>
-<script src="prepared_challenges.js"></script>
+<script src="config.js"></script>
+<script>if(!window.BLASTOFF_API_BASE){document.write('<script src="prepared_challenges.js"><\/script>');}</script>
 <script>
 const ROUND_SECONDS = 25, TOTAL_ROUNDS = 7, MILES_PER_POINT = 1000;
+const BLASTOFF_API_BASE = String(window.BLASTOFF_API_BASE || "").replace(/\/+$/, "");
 
 // 5 Cosmic Rarity Tiers: 10, 25, 50, 75, 100
 const COSMIC_TIERS = {
@@ -1730,7 +1732,8 @@ function syncHomeDailyState(){
   }
 
   if($("poolBadge")){
-    $("poolBadge").textContent = `✦ ${categories.length} ACTIVE PROMPTS`;
+    const promptCount = window.BLASTOFF_PREPARED ? Object.keys(window.BLASTOFF_PREPARED.questions).length : categories.length;
+    $("poolBadge").textContent = `✦ ${promptCount} ACTIVE PROMPTS`;
   }
 }
 
@@ -1954,24 +1957,42 @@ function triggerShake(){
   wrap.classList.add("shake");
 }
 
-function startGame(which){
+async function fetchRemoteDailyRounds(){
+  const response = await fetch(BLASTOFF_API_BASE + "/api/daily", {cache:"no-store"});
+  if(!response.ok) throw new Error("Daily challenge could not be loaded.");
+  const data = await response.json();
+  rounds = data.rounds.map(q => ({...q,q:q.prompt,answerList:null,brands:{}}));
+}
+async function fetchRemoteAnswerReview(){
+  const ids = rounds.map(r => r.id).join(",");
+  const response = await fetch(BLASTOFF_API_BASE + "/api/review?ids=" + encodeURIComponent(ids), {cache:"no-store"});
+  if(!response.ok) throw new Error("Answer review could not be loaded.");
+  const data = await response.json();
+  const byId = new Map(data.questions.map(q => [q.id,q]));
+  rounds = rounds.map(round => ({...round,answerList:byId.get(round.id)?.answers || []}));
+}
+async function startGame(which){
+  mode = which;
   if(which === "daily"){
     const saved = getSavedDailyRun();
-    if(saved){
-      mode = "daily";
-      totalMiles = saved.totalMiles;
-      answers = saved.answers;
-      rounds = getDailyRoundSet(categories);
-      renderResultsScreen(true);
-      toast("Showing today's locked-in Daily Mission!");
+    try{
+      if(BLASTOFF_API_BASE) await fetchRemoteDailyRounds();
+      else rounds = getDailyRoundSet(categories);
+      if(saved){
+        totalMiles = saved.totalMiles;
+        answers = saved.answers;
+        if(BLASTOFF_API_BASE) await fetchRemoteAnswerReview();
+        renderResultsScreen(true);
+        toast("Showing the locked-in daily mission.");
+        return;
+      }
+    }catch(error){
+      toast(error.message || "Unable to load the daily mission.");
       return;
     }
+  }else{
+    rounds = pickDistinctRounds(categories);
   }
-
-  mode = which;
-  rounds = which === "daily"
-    ? getDailyRoundSet(categories)
-    : pickDistinctRounds(categories);
   idx = 0;
   totalMiles = 0;
   answers = [];
@@ -1979,7 +2000,6 @@ function startGame(which){
   updateTelemetry(false);
   renderRound();
 }
-
 function renderRound(){
   roundToken++;
   locked = false;
@@ -2260,37 +2280,43 @@ function confirmValidBrand(found){
 
 async function submitAnswer(raw=""){
   if(locked || checking) return;
-
-  if(pendingSuggestion){
-    confirmValidBrand(pendingSuggestion);
-    return;
-  }
-
+  if(pendingSuggestion){confirmValidBrand(pendingSuggestion);return;}
   const answer = raw.trim();
-  if(!answer){
-    triggerShake();
-    toast("Enter a brand to ignite thrusters.");
-    $("answer").focus();
-    return;
-  }
-
+  if(!answer){triggerShake();toast("Enter a brand to ignite thrusters.");$("answer").focus();return;}
   const c = rounds[idx];
-  let found = lookupLocal(c, answer);
-  if(!found){
-    rejectAnswer(answer);
-    return;
+  let found = null;
+  if(BLASTOFF_API_BASE){
+    checking = true;
+    $("answer").disabled = true;
+    $("submitBtn").disabled = true;
+    $("submitBtn").textContent = "SCANNING...";
+    $("inputIcon").textContent = "◌";
+    try{
+      const response = await fetch(BLASTOFF_API_BASE + "/api/answer", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({questionId:c.id,answer})});
+      if(!response.ok) throw new Error("Answer check failed.");
+      const result = await response.json();
+      checking = false;
+      $("answer").disabled = false;
+      $("submitBtn").disabled = false;
+      $("submitBtn").textContent = "IGNITE ↗";
+      $("inputIcon").textContent = "⌕";
+      if(result.accepted) found = {exact:true,name:result.name,points:result.points,source:"prepared"};
+      else if(result.suggestion){showSuggestion({exact:true,name:result.suggestion.name,points:result.suggestion.points,source:"prepared"});return;}
+      else{rejectAnswer(answer);return;}
+    }catch(error){
+      checking = false;
+      $("answer").disabled = false;
+      $("submitBtn").disabled = false;
+      $("submitBtn").textContent = "IGNITE ↗";
+      $("inputIcon").textContent = "⌕";
+      toast("Could not reach the answer checker. Try again.");
+      return;
+    }
+  }else{
+    found = lookupLocal(c, answer);
+    if(!found){rejectAnswer(answer);return;}
+    if(!found.exact){showSuggestion(found);return;}
   }
-
-  if(!found.exact && (found.source === "local" || found.source === "registry") &&
-     found.dist <= 2 && normalize(answer).length >= 7){
-    found.exact = true;
-  }
-
-  if(!found.exact){
-    showSuggestion(found);
-    return;
-  }
-
   confirmValidBrand(found);
 }
 
@@ -2424,14 +2450,14 @@ function renderResultsScreen(isLockedRecap=false){
   $("againBtn").textContent = "BACK TO DAILY CHALLENGE ↻";
 }
 
-function finishGame(){
+async function finishGame(){
   clearInterval(timer);
   if(mode === "daily"){
-    saveDailyRun({
-      dateKey: getTodayKey(),
-      totalMiles,
-      answers
-    });
+    if(BLASTOFF_API_BASE){
+      try{await fetchRemoteAnswerReview();}
+      catch(error){toast("Flight saved, but answer review could not load yet.");}
+    }
+    saveDailyRun({dateKey:getTodayKey(),totalMiles,answers});
   }
   renderResultsScreen(false);
 }

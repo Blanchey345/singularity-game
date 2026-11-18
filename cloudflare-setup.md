@@ -1,6 +1,6 @@
 # Cloudflare backend setup
 
-The Worker in `worker.js` is the server-side layer for BLASTOFF. It reads the precomputed 90-day payload from a Cloudflare KV namespace named by the `CHALLENGE_DATA` binding.
+The Worker in `worker.js` is the server-side layer for BLASTOFF. It reads the precomputed 90-day payload containing 630 unique prompts and shared category answer banks from a Cloudflare KV namespace named by the `CHALLENGE_DATA` binding.
 
 ## One-time setup
 

@@ -1855,13 +1855,6 @@ function updateTelemetry(boosted=false){
   }
 }
 
-function showContinueButton(){
-  const isFinal = idx >= TOTAL_ROUNDS - 1;
-  $("continueBtn").textContent = isFinal ? "VIEW ROUND RECAP 🏁" : "CONTINUE YOUR JOURNEY →";
-  $("nextBar").classList.add("show");
-  $("skipBtn").style.visibility = "hidden";
-}
-
 function advanceStage(){
   if(!locked || document.body.classList.contains("animating")) return;
   idx++;
@@ -2339,7 +2332,7 @@ function handleTimeout(){
 
   $("submitBtn").textContent = "NEXT QUESTION →";
   $("submitBtn").disabled = false;
-  $("submitBtn").onclick = advanceStage;
+  $("submitBtn").onclick = null;
 }
 
 function animateRocketBurn(found, tier, milesGained){
@@ -2615,7 +2608,7 @@ function escapeHtml(s){
 }
 
 $("startBtn").onclick = () => startGame("daily");
-$("answerForm").addEventListener("submit", e => { e.preventDefault(); submitAnswer($("answer").value); });
+$("answerForm").addEventListener("submit", e => { e.preventDefault(); if(locked){ advanceStage(); return; } submitAnswer($("answer").value); });
 $("answer").addEventListener("input", () => {
   if(pendingSuggestion) clearSuggestion(true);
   syncInputState();

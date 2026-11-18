@@ -1,0 +1,2278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BALLISTIC — Elite Ball Knowledge in Deep Space</title>
+<style>
+:root{
+  --bg:#04060f;
+  --glass:rgba(10, 15, 36, 0.74);
+  --glass-strong:rgba(9, 13, 32, 0.88);
+  --line:rgba(56, 189, 248, 0.24);
+  --line-dim:rgba(141, 153, 199, 0.2);
+  --text:#f1f5ff;
+  --muted:#9aa6d4;
+  --cyan:#38bdf8;
+  --violet:#a855f7;
+  --gold:#fbbf24;
+  --green:#4ade80;
+  --red:#fb7185;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  min-height:100vh;
+  min-height:100dvh;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;
+  overflow-x:hidden;
+}
+
+/* =========================================================
+   FULL-SCREEN ROCKET & DEEP SPACE CANVAS (CENTERED JOURNEY)
+   ========================================================= */
+.space-stage{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  overflow:hidden;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 8% 50%, rgba(29, 78, 216, 0.34) 0%, transparent 36%),
+    radial-gradient(circle at 52% 48%, rgba(99, 102, 241, 0.16) 0%, transparent 46%),
+    radial-gradient(circle at 88% 48%, rgba(168, 85, 247, 0.24) 0%, transparent 45%),
+    linear-gradient(105deg, #07132e 0%, #050817 34%, #03050d 100%);
+}
+.space-stage:before,
+.space-stage:after{
+  content:"";
+  position:absolute;
+  inset:0;
+}
+.space-stage:before{
+  opacity:.74;
+  background-image:
+    radial-gradient(#ffffff 1px, transparent 1px),
+    radial-gradient(#7dd3fc 1.3px, transparent 1.3px),
+    radial-gradient(#fde68a 1px, transparent 1px);
+  background-size:64px 64px, 118px 96px, 175px 140px;
+  background-position:12px 18px, 48px 34px, 90px 70px;
+}
+.space-stage:after{
+  opacity:.24;
+  background-image:
+    linear-gradient(to right, rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(56, 189, 248, 0.06) 1px, transparent 1px);
+  background-size:120px 120px;
+}
+
+/* Giant Curved Earth & Atmosphere along Left Edge of Screen */
+.earth-giant{
+  position:absolute;
+  left:-210px;
+  top:48%;
+  transform:translateY(-50%);
+  width:340px;
+  height:74vh;
+  min-height:420px;
+  border-radius:50%;
+  background:radial-gradient(circle at 68% 46%, #38bdf8 0%, #2563eb 42%, #1e1b4b 82%, #090d1f 100%);
+  box-shadow:
+    0 0 0 14px rgba(56, 189, 248, 0.20),
+    0 0 0 34px rgba(56, 189, 248, 0.09),
+    0 0 0 62px rgba(99, 102, 241, 0.04),
+    0 0 90px rgba(56, 189, 248, 0.55);
+}
+.earth-giant:before{
+  content:"";
+  position:absolute;
+  right:36px;
+  top:22%;
+  width:56px;
+  height:120px;
+  border-radius:45% 55% 60% 40%;
+  background:rgba(52, 211, 153, 0.34);
+  filter:blur(3px);
+}
+.earth-giant:after{
+  content:"";
+  position:absolute;
+  right:58px;
+  bottom:24%;
+  width:42px;
+  height:76px;
+  border-radius:50%;
+  background:rgba(52, 211, 153, 0.26);
+  filter:blur(3px);
+}
+.atmo-boundary{
+  position:absolute;
+  left:158px;
+  top:0;
+  bottom:0;
+  width:1px;
+  border-right:1px dashed rgba(125, 211, 252, 0.26);
+}
+.atmo-tag{
+  position:absolute;
+  left:168px;
+  top:34%;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:1.6px;
+  color:rgba(125, 211, 252, 0.55);
+  text-transform:uppercase;
+}
+
+/* Middle-of-Screen Flight Corridor (y = 48%) */
+.flight-corridor{
+  position:absolute;
+  inset:0;
+  opacity:.28;
+  transition:opacity .4s ease;
+}
+body.in-game .flight-corridor{
+  opacity:1;
+}
+
+.trajectory-line{
+  position:absolute;
+  left:10%;
+  right:7%;
+  top:48%;
+  height:2px;
+  background:repeating-linear-gradient(90deg, rgba(148, 163, 184, 0.28) 0 8px, transparent 8px 16px);
+}
+.trajectory-beam{
+  position:absolute;
+  left:10%;
+  top:48%;
+  height:4px;
+  width:0%;
+  transform:translateY(-1px);
+  border-radius:99px;
+  background:linear-gradient(90deg, rgba(56,189,248,.25), #38bdf8, #a855f7, #fbbf24);
+  box-shadow:0 0 20px rgba(56, 189, 248, 0.9);
+  transition:width .95s cubic-bezier(.22,1,.36,1);
+}
+
+/* Trajectory Distance Waypoints */
+.waypoint{
+  position:absolute;
+  top:calc(48% + 14px);
+  transform:translateX(-50%);
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:1px;
+  color:rgba(148, 163, 184, 0.55);
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.waypoint:before{
+  content:"";
+  display:block;
+  width:4px;
+  height:4px;
+  border-radius:50%;
+  background:rgba(148, 163, 184, 0.5);
+  margin:0 auto 4px;
+}
+.wp-start{left:10%}
+.wp-meteor{left:29.4%}
+.wp-moon{left:48.7%;color:rgba(186, 230, 253, 0.78)}
+.wp-deep{left:91%;color:rgba(253, 230, 138, 0.78)}
+
+/* Celestial Bodies & Drifting Meteorites Around Middle Corridor */
+.celestial{
+  position:absolute;
+  transform:translate(-50%,-50%);
+}
+.sat-obj{left:21%;top:37%;animation:floatRock 5.2s ease-in-out infinite}
+.moon-obj{left:48.7%;top:37%;text-align:center}
+.planet-obj{left:91%;top:38%;text-align:center}
+
+.celestial-label{
+  display:block;
+  margin-top:4px;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:1px;
+  color:#cbd5e1;
+  text-shadow:0 2px 8px #000;
+  white-space:nowrap;
+}
+.celestial-label.gold{color:#fde68a}
+
+.meteor-a{left:32%;top:57%;animation:floatRock 4.1s ease-in-out infinite}
+.meteor-b{left:64%;top:36%;animation:floatRock 5.6s ease-in-out infinite reverse}
+.meteor-c{left:75%;top:57%;animation:floatRock 4.5s ease-in-out infinite}
+.meteor-d{left:83%;top:62%;animation:floatRock 6.2s ease-in-out infinite reverse;opacity:.75}
+.meteor-e{left:23%;top:61%;animation:floatRock 5.4s ease-in-out infinite;opacity:.7}
+
+/* Hero Rocket Ship in Middle of Screen */
+.ship-wrap{
+  position:absolute;
+  left:10%;
+  top:48%;
+  width:122px;
+  height:70px;
+  transform:translate(-50%,-50%);
+  transition:left .95s cubic-bezier(.22,1,.36,1);
+  animation:shipHover 2.8s ease-in-out infinite;
+  filter:drop-shadow(0 0 20px rgba(56, 189, 248, 0.8));
+  z-index:3;
+}
+.ship-wrap .flame{
+  transform-origin:30px 34px;
+  animation:flamePulse .24s ease-in-out infinite;
+}
+.ship-wrap.boosting{
+  filter:drop-shadow(0 0 36px rgba(251, 191, 36, 1));
+}
+.ship-wrap.boosting .flame{
+  transform:scaleX(1.95) scaleY(1.35);
+}
+
+@keyframes floatRock{
+  0%,100%{transform:translate(-50%,-50%) translateY(0) rotate(0deg)}
+  50%{transform:translate(-50%,-50%) translateY(-8px) rotate(9deg)}
+}
+@keyframes flamePulse{
+  0%,100%{transform:scaleX(1) scaleY(1);opacity:.92}
+  50%{transform:scaleX(1.24) scaleY(.88);opacity:1}
+}
+@keyframes shipHover{
+  0%,100%{transform:translate(-50%,-50%) translateY(0px)}
+  50%{transform:translate(-50%,-50%) translateY(-5px)}
+}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+
+/* =========================================================
+   FOREGROUND FLOATING GLASS BLOCKS
+   ========================================================= */
+.shell{
+  width:min(960px,calc(100% - 32px));
+  margin:0 auto;
+  padding:16px 0 28px;
+  position:relative;
+  z-index:2;
+}
+body.in-game .shell{
+  min-height:100vh;
+  min-height:100dvh;
+  display:flex;
+  flex-direction:column;
+  padding:14px 0 18px;
+}
+
+.top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:14px;
+}
+.logo{font-size:20px;font-weight:950;letter-spacing:4px;text-shadow:0 2px 14px #000}
+.logo span{color:var(--cyan);text-shadow:0 0 18px #38bdf888}
+.pill{
+  border:1px solid var(--line);
+  border-radius:99px;
+  padding:7px 13px;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:1.2px;
+  background:var(--glass);
+  backdrop-filter:blur(12px);
+}
+.screen{display:none}.screen.active{display:block;animation:up .35s ease}
+
+/* Active Gameplay Layout: Top Question -> Middle Rocket -> Bottom Timer & Answer */
+#game.active{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.top-console{
+  max-width:740px;
+  width:100%;
+  margin:0 auto;
+}
+
+.middle-sky-spacer{
+  flex:1;
+  min-height:190px;
+  pointer-events:none;
+}
+
+.bottom-console{
+  max-width:740px;
+  width:100%;
+  margin:0 auto;
+}
+
+.hero{text-align:center;padding:22px 10px 14px}
+.eyebrow{font-size:11px;letter-spacing:3px;color:var(--cyan);font-weight:800;text-transform:uppercase}
+.hero h1{font-size:clamp(44px,8.5vw,84px);line-height:.95;margin:14px 0 12px;letter-spacing:-4px;font-weight:950;text-shadow:0 10px 30px #000a}
+.hero h1 em{
+  font-style:normal;
+  background:linear-gradient(95deg, var(--cyan), #c084fc);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 0 26px #38bdf844);
+}
+.hero p{color:#cbd5e1;font-size:16px;line-height:1.6;max-width:560px;margin:0 auto;text-shadow:0 2px 12px #000}
+
+.card{
+  background:var(--glass);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--line);
+  border-radius:20px;
+  box-shadow:0 18px 60px rgba(0, 0, 0, 0.55);
+}
+.intro{max-width:650px;margin:20px auto 0;padding:24px}
+.introgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 16px}
+.stat{text-align:center;padding:13px 5px;background:rgba(6, 10, 26, 0.72);border:1px solid var(--line-dim);border-radius:14px}
+.stat strong{display:block;font-size:22px;color:var(--cyan)}
+.stat small{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+
+/* 5 Cosmic Rarity Tiers Legend on Home Screen */
+.tier-strip{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:7px;
+  margin:0 0 20px;
+}
+.tier-pill{
+  padding:9px 4px;
+  border-radius:12px;
+  background:rgba(6, 10, 26, 0.72);
+  border:1px solid var(--line-dim);
+  text-align:center;
+}
+.tier-pill .t-ico{font-size:15px;display:block;margin-bottom:2px}
+.tier-pill .t-name{font-size:10px;font-weight:800;color:#e2e8f0;display:block;letter-spacing:.3px}
+.tier-pill .t-pts{font-size:10px;font-weight:800;color:var(--cyan);display:block;margin-top:1px}
+.tier-pill.t-100{border-color:rgba(251, 191, 36, 0.45);background:rgba(28, 21, 9, 0.75)}
+.tier-pill.t-100 .t-pts{color:var(--gold)}
+
+.btn{border:0;border-radius:14px;padding:15px 22px;font-size:14px;font-weight:850;letter-spacing:.4px;cursor:pointer;transition:transform .16s ease,filter .16s ease,opacity .16s ease}
+.btn:hover:not(:disabled){transform:translateY(-2px);filter:brightness(1.08)}
+.btn:active:not(:disabled){transform:translateY(0)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.primary{width:100%;background:linear-gradient(100deg,var(--cyan),#818cf8);color:#050814;box-shadow:0 9px 28px #38bdf838}
+.secondary{background:rgba(18, 25, 56, 0.82);color:var(--text);border:1px solid var(--line)}
+.sharebtn{
+  background:linear-gradient(100deg, #4ade80, #38bdf8);
+  color:#041019;
+  box-shadow:0 9px 28px rgba(56, 189, 248, 0.34);
+}
+.subactions{display:flex;gap:10px;margin-top:11px}.subactions .btn{flex:1}
+.rules{display:flex;gap:8px;align-items:flex-start;color:var(--muted);font-size:12px;line-height:1.5;margin-top:16px}.rules b{color:var(--text)}
+
+/* Top Telemetry Strip & Top Question Card */
+.game-hud{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:9px 15px;
+  margin-bottom:10px;
+  border-radius:14px;
+  background:var(--glass);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--line);
+}
+.hud-left{display:flex;align-items:center;gap:14px}
+.round{font-size:12px;color:var(--muted);letter-spacing:1.4px;text-transform:uppercase}.round b{color:var(--text)}
+.alt-pill{
+  font-size:13px;
+  font-weight:900;
+  color:var(--cyan);
+  font-variant-numeric:tabular-nums;
+  padding-left:14px;
+  border-left:1px solid var(--line-dim);
+}
+.zonebadge{
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+  color:#e9d5ff;
+  background:rgba(36, 23, 71, 0.84);
+  border:1px solid rgba(168, 85, 247, 0.45);
+  padding:5px 11px;
+  border-radius:99px;
+}
+
+.question{
+  padding:15px 22px 14px;
+  text-align:center;
+  background:var(--glass-strong);
+}
+.q-head{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+}
+.qicon{font-size:24px}
+.question h2{font-size:clamp(21px,3.8vw,32px);letter-spacing:-1px;margin:0}
+.question p{margin:4px 0 0;color:var(--muted);font-size:12px}
+
+/* Bottom Timer Docked Directly Above Answer Box */
+.timercluster{
+  padding:9px 14px 10px;
+  border-radius:14px;
+  background:var(--glass-strong);
+  backdrop-filter:blur(14px);
+  border:1px solid var(--line);
+}
+.timerrow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:6px;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:1.1px;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.timer{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:14px;
+  font-variant-numeric:tabular-nums;
+  font-weight:950;
+  color:var(--cyan);
+}
+.timer.urgent{color:var(--red)}
+.timerbar{height:6px;background:rgba(22, 30, 66, 0.85);border-radius:99px;overflow:hidden}
+.timerbar div{height:100%;width:100%;background:linear-gradient(90deg,var(--cyan),var(--violet));transition:width .25s linear}
+
+/* Answer Input Box */
+.answerrow{display:flex;gap:10px;margin-top:9px;align-items:stretch}
+.inputwrap{
+  position:relative;
+  flex:1;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  background:rgba(6, 10, 26, 0.9);
+  backdrop-filter:blur(14px);
+  border:1.5px solid #2c3c7a;
+  border-radius:14px;
+  box-shadow:inset 0 2px 10px #00000066,0 10px 28px #00000045;
+  transition:border-color .18s ease,box-shadow .18s ease,background .18s ease;
+}
+.inputwrap:focus-within{
+  border-color:var(--cyan);
+  background:rgba(9, 15, 38, 0.95);
+  box-shadow:inset 0 2px 8px #00000040,0 0 0 4px #38bdf824,0 10px 30px #38bdf818;
+}
+.inputwrap.urgent:focus-within{
+  border-color:#fb923c;
+  box-shadow:inset 0 2px 8px #00000040,0 0 0 4px #fb718526;
+}
+.inputwrap.suggest{
+  border-color:var(--gold)!important;
+  background:rgba(28, 23, 11, 0.92)!important;
+  box-shadow:0 0 0 4px rgba(251, 191, 36, 0.20)!important;
+}
+.inputwrap.shake{
+  animation:shake .34s ease;
+  border-color:var(--red)!important;
+  box-shadow:0 0 0 4px #fb718528!important;
+}
+.inputwrap.hit{
+  border-color:#34d399;
+  background:rgba(9, 33, 35, 0.92);
+  box-shadow:0 0 0 3px #4ade8020;
+}
+.inputwrap.miss{
+  border-color:#fb7185;
+  background:rgba(33, 13, 24, 0.92);
+}
+.inputicon{
+  padding-left:16px;
+  color:#6473a8;
+  font-size:17px;
+  user-select:none;
+  transition:color .18s ease,transform .18s ease;
+}
+.inputwrap:focus-within .inputicon{color:var(--cyan);transform:scale(1.06)}
+.inputwrap.suggest .inputicon{color:var(--gold)}
+.inputwrap.hit .inputicon{color:var(--green)}
+.inputwrap.miss .inputicon{color:var(--red)}
+
+.inputwrap input{
+  min-width:0;
+  flex:1;
+  background:transparent;
+  border:0;
+  padding:15px 12px;
+  color:var(--text);
+  font-size:17px;
+  font-weight:600;
+  letter-spacing:.2px;
+  outline:none;
+}
+.inputwrap input::placeholder{color:#6a79ad;font-weight:500}
+.inputwrap input:disabled{color:#b7c3eb;cursor:not-allowed}
+
+.inputmeta{display:flex;align-items:center;gap:8px;padding-right:12px}
+.keyhint{
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.8px;
+  color:#6c7bb0;
+  background:#101736;
+  border:1px solid #243166;
+  border-radius:6px;
+  padding:4px 7px;
+  user-select:none;
+  transition:color .18s ease,border-color .18s ease,background .18s ease;
+}
+.inputwrap.has-text .keyhint{color:var(--cyan);border-color:#2e5a88;background:#112244}
+.inputwrap.suggest .keyhint{color:var(--gold);border-color:#785a1a;background:#2b210d}
+.inputwrap.locked .keyhint{display:none}
+
+.clearbtn{
+  display:none;
+  align-items:center;
+  justify-content:center;
+  width:26px;
+  height:26px;
+  border:0;
+  border-radius:50%;
+  background:#18224d;
+  color:#a6b4e3;
+  font-size:12px;
+  cursor:pointer;
+  transition:background .15s ease,color .15s ease;
+}
+.clearbtn:hover{background:#253470;color:var(--text)}
+.inputwrap.has-text:not(.locked) .clearbtn{display:flex}
+
+.answerrow .primary{width:auto;min-width:150px;white-space:nowrap}
+.answerrow .primary.confirming{
+  background:linear-gradient(100deg, var(--gold), #fb923c);
+  color:#170f02;
+  box-shadow:0 9px 28px rgba(251, 191, 36, 0.35);
+}
+
+/* Compact Stage Feedback Banner (No Bell Curve During Stages) */
+.feedback{
+  margin-top:9px;
+  padding:12px 16px;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background:var(--glass-strong);
+  backdrop-filter:blur(14px);
+  transition:background .2s ease,border-color .2s ease;
+}
+.feedback-main{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+}
+.feedback.good{border-color:#34d39966;background:rgba(9, 34, 36, 0.9)}
+.feedback.singularity-hit{border-color:rgba(251, 191, 36, 0.72);background:rgba(33, 24, 9, 0.92)}
+.feedback.bad{border-color:#fb718566;background:rgba(38, 16, 27, 0.9)}
+.feedback.didyoumean{border-color:#fbbf2477;background:rgba(36, 28, 13, 0.92)}
+.feedback .result{font-weight:800;font-size:15px}
+.feedback.singularity-hit .result{color:#fde68a}
+.feedback.bad .result{color:#fda4af}
+.feedback.didyoumean .result{color:#fde68a;font-size:15px}
+.feedback small{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+
+.tier-tag{
+  display:inline-block;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  padding:2px 8px;
+  border-radius:99px;
+  margin-left:6px;
+  vertical-align:middle;
+  background:rgba(56, 189, 248, 0.16);
+  border:1px solid rgba(56, 189, 248, 0.4);
+  color:#bae6fd;
+}
+.tier-tag.t-100{
+  background:rgba(251, 191, 36, 0.22);
+  border-color:rgba(251, 191, 36, 0.65);
+  color:#fef08a;
+}
+.tier-tag.t-75{
+  background:rgba(168, 85, 247, 0.22);
+  border-color:rgba(168, 85, 247, 0.55);
+  color:#e9d5ff;
+}
+
+.suggestchip{
+  border:1px solid #fbbf2488;
+  background:#33260e;
+  color:#fef08a;
+  font-size:12px;
+  font-weight:850;
+  padding:8px 12px;
+  border-radius:10px;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:transform .14s ease,background .14s ease;
+}
+.suggestchip:hover{transform:translateY(-1px);background:#453312}
+
+.points{font-size:19px;font-weight:950;color:var(--green);white-space:nowrap;text-align:right}
+.feedback.singularity-hit .points{color:var(--gold)}
+.points small{display:block;font-size:11px;font-weight:700;color:#86efac;margin-top:1px}
+.feedback.singularity-hit .points small{color:#fde68a}
+.points.zero{color:var(--gold)}
+
+/* Continue Your Journey Action Bar */
+.nextbar{
+  display:none;
+  margin-top:9px;
+  animation:up .25s ease;
+}
+.nextbar.show{display:block}
+.nextbar .btn{
+  padding:14px 20px;
+  background:linear-gradient(100deg, #4ade80, #38bdf8);
+  color:#041019;
+  font-size:14px;
+  letter-spacing:.6px;
+  box-shadow:0 10px 30px rgba(56, 189, 248, 0.38);
+}
+
+.bottomrow{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-top:8px;
+  padding:7px 13px;
+  border-radius:11px;
+  background:rgba(7, 11, 28, 0.72);
+  backdrop-filter:blur(8px);
+  color:var(--muted);
+  font-size:11px;
+}
+.skip{background:transparent;border:0;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+
+/* End-of-Round Normal Distribution Bell Curve Widget */
+.curve-box{
+  padding-top:2px;
+}
+.curve-head{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+}
+.curve-rank{
+  font-size:17px;
+  font-weight:950;
+  letter-spacing:.3px;
+  color:var(--cyan);
+}
+.curve-desc{
+  font-size:12px;
+  color:var(--muted);
+}
+.curve-svg{
+  width:100%;
+  height:auto;
+  display:block;
+}
+
+/* Results & Final Flight Recap */
+.resulthead{text-align:center;padding:16px 0 12px}
+.resulthead .medal{font-size:52px}
+.resulthead h2{font-size:clamp(32px,6vw,44px);letter-spacing:-1.8px;margin:8px 0;text-shadow:0 4px 18px #000}
+.resulthead p{color:#cbd5e1;margin:0}
+.finalscore{font-size:clamp(44px,8vw,62px);color:var(--cyan);font-weight:950;letter-spacing:-3px;margin:10px 0 0;text-shadow:0 0 28px rgba(56,189,248,.35)}
+.finalscore span{font-size:14px;letter-spacing:1.2px;color:var(--muted)}
+
+/* Shareable Emoji Flight Strip */
+.share-strip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-top:14px;
+  padding:9px 16px;
+  border-radius:99px;
+  background:rgba(6, 10, 26, 0.84);
+  border:1px solid var(--line);
+  font-size:18px;
+  letter-spacing:2px;
+}
+
+.recap{padding:20px;margin:16px 0;background:var(--glass-strong)}
+.recap h3, .breakdown h3{font-size:12px;letter-spacing:2px;color:var(--muted);margin:0 0 14px;text-transform:uppercase}
+.recap-curve-card{
+  background:rgba(6, 10, 26, 0.78);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:15px 16px 12px;
+  margin-bottom:14px;
+}
+.recapstory{
+  background:rgba(6, 10, 26, 0.72);
+  border:1px solid var(--line-dim);
+  border-radius:14px;
+  padding:14px 16px;
+  font-size:14px;
+  line-height:1.55;
+  color:#dbeafe;
+  margin-bottom:14px;
+}
+.recapgrid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-bottom:16px;
+}
+.rstat{
+  background:rgba(6, 10, 26, 0.72);
+  border:1px solid var(--line-dim);
+  border-radius:14px;
+  padding:13px 12px;
+}
+.rstat small{display:block;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.rstat strong{display:block;font-size:17px;color:var(--cyan);font-weight:900}
+.rstat span{display:block;font-size:11px;color:#a5b4fc;margin-top:2px}
+
+.milestones{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+}
+.ms{
+  padding:10px 8px;
+  border-radius:12px;
+  text-align:center;
+  font-size:11px;
+  border:1px solid var(--line-dim);
+  background:rgba(6, 10, 26, 0.65);
+  color:#6c7ab0;
+}
+.ms b{display:block;font-size:15px;margin-bottom:3px}
+.ms.reached{
+  border-color:#38bdf866;
+  background:rgba(13, 28, 56, 0.85);
+  color:#e0f2fe;
+}
+.ms.reached small{color:var(--cyan);font-weight:700}
+
+.breakdown{padding:18px;margin:16px 0 20px;background:var(--glass-strong)}
+.answeritem{display:flex;justify-content:space-between;align-items:center;padding:12px 2px;border-top:1px solid var(--line-dim);gap:12px}
+.answeritem:first-of-type{border-top:0}
+.answeritem b{font-size:14px}
+.answeritem small{display:block;color:var(--muted);margin-top:3px}
+.answeritem strong{color:var(--cyan);white-space:nowrap}
+.resultbuttons{display:flex;gap:10px}.resultbuttons .btn{flex:1}
+
+.footer{text-align:center;color:#6c79ab;font-size:11px;margin-top:26px;letter-spacing:.5px}
+body.in-game .footer{display:none}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#eef4ff;color:#070b1c;padding:11px 17px;border-radius:99px;font-weight:800;font-size:12px;box-shadow:0 8px 30px #0008;opacity:0;pointer-events:none;transition:.2s;z-index:20}
+.toast.show{opacity:1}
+
+@media(max-width:640px){
+  .shell{width:min(100% - 20px,960px);padding-top:12px}
+  .top{margin-bottom:10px}
+  .hero{padding-top:14px}.hero h1{letter-spacing:-2.5px}
+  .intro{padding:17px}
+  .tier-strip{grid-template-columns:repeat(3,1fr)}
+  .middle-sky-spacer{min-height:150px}
+  .ship-wrap{width:88px;height:52px}
+  .earth-giant{left:-245px;width:310px}
+  .atmo-boundary{left:92px}
+  .atmo-tag{left:100px;top:33%}
+  .waypoint{font-size:8px}
+  .question{padding:12px 14px}
+  .answerrow{flex-direction:column}
+  .answerrow .primary{width:100%}
+  .keyhint{display:none}
+  .subactions{flex-direction:column}
+  .resultbuttons{flex-direction:column}
+  .recapgrid{grid-template-columns:1fr}
+  .milestones{grid-template-columns:repeat(2,1fr)}
+  .feedback-main{flex-direction:column;align-items:flex-start}
+}
+</style>
+</head>
+<body>
+
+<!-- FULL-SCREEN SPACE & ROCKET FLIGHT CANVAS (CENTERED JOURNEY) -->
+<div class="space-stage" id="spaceStage" aria-hidden="true">
+  <div class="earth-giant"></div>
+  <div class="atmo-boundary"></div>
+  <span class="atmo-tag">ATMOSPHERE</span>
+
+  <div class="flight-corridor">
+    <div class="trajectory-line"></div>
+    <div class="trajectory-beam" id="flightFill"></div>
+
+    <!-- Trajectory Milestones Along Middle Corridor -->
+    <div class="waypoint wp-start">0 MI</div>
+    <div class="waypoint wp-meteor">120K · METEORS</div>
+    <div class="waypoint wp-moon">238.9K · MOON</div>
+    <div class="waypoint wp-deep">500K+ · DEEP SPACE</div>
+
+    <!-- Orbiting Satellite -->
+    <div class="celestial sat-obj">
+      <svg width="34" height="34" viewBox="0 0 32 32" fill="none">
+        <rect x="13" y="11" width="6" height="10" rx="1.5" fill="#94a3b8"/>
+        <rect x="2" y="13" width="9" height="6" rx="1" fill="#38bdf8"/>
+        <rect x="21" y="13" width="9" height="6" rx="1" fill="#38bdf8"/>
+        <path d="M16 21v5m-3 0h6" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <!-- Meteorites & Asteroids -->
+    <div class="celestial meteor-a">
+      <svg width="36" height="30" viewBox="0 0 36 28" fill="none">
+        <path d="M2 8L14 14M5 4L16 11" stroke="#fb923c" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>
+        <polygon points="18,7 28,9 32,17 25,24 15,22 13,13" fill="#64748b" stroke="#94a3b8" stroke-width="1.2"/>
+        <circle cx="21" cy="14" r="2.2" fill="#334155"/>
+        <circle cx="26" cy="18" r="1.5" fill="#334155"/>
+      </svg>
+    </div>
+
+    <div class="celestial meteor-b">
+      <svg width="40" height="32" viewBox="0 0 38 30" fill="none">
+        <path d="M3 10L15 15M6 5L17 11" stroke="#f43f5e" stroke-width="1.8" stroke-linecap="round" opacity=".8"/>
+        <polygon points="19,6 30,8 34,18 26,25 16,21 15,12" fill="#78716c" stroke="#a8a29e" stroke-width="1.2"/>
+        <circle cx="23" cy="14" r="2.5" fill="#44403c"/>
+        <circle cx="27" cy="19" r="1.8" fill="#44403c"/>
+      </svg>
+    </div>
+
+    <div class="celestial meteor-c">
+      <svg width="30" height="30" viewBox="0 0 28 28" fill="none">
+        <polygon points="9,4 20,6 24,15 18,23 7,21 4,12" fill="#475569" stroke="#94a3b8" stroke-width="1.2"/>
+        <circle cx="13" cy="12" r="2" fill="#1e293b"/>
+        <circle cx="17" cy="17" r="1.6" fill="#1e293b"/>
+      </svg>
+    </div>
+
+    <div class="celestial meteor-d">
+      <svg width="34" height="28" viewBox="0 0 36 28" fill="none">
+        <path d="M2 8L14 14" stroke="#38bdf8" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>
+        <polygon points="18,7 28,9 32,17 25,24 15,22 13,13" fill="#475569" stroke="#64748b" stroke-width="1.2"/>
+      </svg>
+    </div>
+
+    <div class="celestial meteor-e">
+      <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+        <polygon points="9,4 20,6 24,15 18,23 7,21 4,12" fill="#334155" stroke="#64748b" stroke-width="1.2"/>
+      </svg>
+    </div>
+
+    <!-- The Moon -->
+    <div class="celestial moon-obj">
+      <svg width="58" height="58" viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="19" fill="url(#moonGrad)"/>
+        <circle cx="18" cy="18" r="3.5" fill="#94a3b8" opacity=".55"/>
+        <circle cx="29" cy="22" r="4.5" fill="#94a3b8" opacity=".45"/>
+        <circle cx="22" cy="31" r="2.8" fill="#94a3b8" opacity=".5"/>
+        <circle cx="30" cy="13" r="2" fill="#94a3b8" opacity=".4"/>
+        <defs>
+          <radialGradient id="moonGrad" cx="35%" cy="30%" r="70%">
+            <stop offset="0%" stop-color="#f8fafc"/>
+            <stop offset="65%" stop-color="#cbd5e1"/>
+            <stop offset="100%" stop-color="#64748b"/>
+          </radialGradient>
+        </defs>
+      </svg>
+      <span class="celestial-label">THE MOON</span>
+    </div>
+
+    <!-- Deep Space Ringed Planet -->
+    <div class="celestial planet-obj">
+      <svg width="62" height="46" viewBox="0 0 52 38" fill="none">
+        <ellipse cx="26" cy="19" rx="22" ry="6" transform="rotate(-18 26 19)" stroke="#fbbf24" stroke-width="2" opacity=".8"/>
+        <circle cx="26" cy="19" r="10" fill="url(#planetGrad)"/>
+        <defs>
+          <linearGradient id="planetGrad" x1="16" y1="9" x2="36" y2="29">
+            <stop offset="0%" stop-color="#c084fc"/>
+            <stop offset="100%" stop-color="#4f46e5"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <span class="celestial-label gold">DEEP SPACE</span>
+    </div>
+
+    <!-- Hero Spaceship in Middle of Screen -->
+    <div class="ship-wrap" id="rocketMarker">
+      <svg width="100%" height="100%" viewBox="0 0 84 48" fill="none">
+        <g class="flame">
+          <path d="M22 17 L0 24 L22 31 Z" fill="url(#outerFlame)"/>
+          <path d="M22 20 L8 24 L22 28 Z" fill="#fef08a"/>
+        </g>
+        <path d="M26 15 L17 5 L38 15 Z" fill="#38bdf8"/>
+        <path d="M26 33 L17 43 L38 33 Z" fill="#38bdf8"/>
+        <rect x="20" y="18" width="6" height="12" rx="1.5" fill="#475569"/>
+        <path d="M25 14 C44 13, 62 16, 78 24 C62 32, 44 35, 25 34 Z" fill="url(#hullGrad)" stroke="#e2e8f0" stroke-width="1.2"/>
+        <path d="M64 17.8 C70 20, 74 22, 78 24 C74 26, 70 28, 64 30.2 C66 26, 66 22, 64 17.8 Z" fill="#f43f5e"/>
+        <ellipse cx="50" cy="24" rx="6.5" ry="4.2" fill="#0f172a" stroke="#38bdf8" stroke-width="1.8"/>
+        <ellipse cx="51.5" cy="22.8" rx="2.5" ry="1.2" fill="#bae6fd" opacity=".85"/>
+        <defs>
+          <linearGradient id="hullGrad" x1="25" y1="14" x2="25" y2="34">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="55%" stop-color="#cbd5e1"/>
+            <stop offset="100%" stop-color="#64748b"/>
+          </linearGradient>
+          <linearGradient id="outerFlame" x1="22" y1="24" x2="0" y2="24">
+            <stop offset="0%" stop-color="#38bdf8"/>
+            <stop offset="55%" stop-color="#f97316"/>
+            <stop offset="100%" stop-color="#ef4444" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- FOREGROUND FLOATING UI -->
+<div class="shell">
+  <header class="top"><div class="logo">BALL<span>ISTIC</span></div><div class="pill">✦ DEEP SPACE BALL KNOWLEDGE</div></header>
+
+  <main id="home" class="screen active">
+    <section class="hero">
+      <div class="eyebrow">Elite ball knowledge. Zero gravity.</div>
+      <h1>PROVE YOUR<br><em>BALL KNOWLEDGE.</em></h1>
+      <p>Every brand you pull fires your thrusters farther from Earth. Obvious picks barely clear the atmosphere—rare deep cuts launch you past the Moon into deep space.</p>
+    </section>
+    <section class="card intro">
+      <div class="introgrid">
+        <div class="stat"><strong>7</strong><small>Stages</small></div>
+        <div class="stat"><strong>25s</strong><small>Burn Window</small></div>
+        <div class="stat"><strong>100K mi</strong><small>Singularity</small></div>
+      </div>
+
+      <div class="tier-strip" aria-label="5 Cosmic Rarity Tiers">
+        <div class="tier-pill"><span class="t-ico">✨</span><span class="t-name">Space Dust</span><span class="t-pts">10 PTS</span></div>
+        <div class="tier-pill"><span class="t-ico">🛰️</span><span class="t-name">Satellite</span><span class="t-pts">25 PTS</span></div>
+        <div class="tier-pill"><span class="t-ico">🌌</span><span class="t-name">Nebula</span><span class="t-pts">50 PTS</span></div>
+        <div class="tier-pill"><span class="t-ico">💥</span><span class="t-name">Supernova</span><span class="t-pts">75 PTS</span></div>
+        <div class="tier-pill t-100"><span class="t-ico">🕳️</span><span class="t-name">Singularity</span><span class="t-pts">100 PTS</span></div>
+      </div>
+
+      <button class="btn primary" id="startBtn">LAUNCH DAILY MISSION&nbsp; 🚀</button>
+      <div class="subactions"><button class="btn secondary" id="practiceBtn">FREE FLIGHT MODE</button><button class="btn secondary" id="howBtn">FLIGHT BRIEFING</button></div>
+      <div class="rules"><span>🛰️</span><span><b>1 point = 1,000 miles.</b> Every valid brand falls into one of 5 cosmic rarity tiers—from <b>Space Dust (10)</b> up to <b>Singularity (100)</b>. View your percentile rank on a normal curve at the end of the round.</span></div>
+    </section>
+  </main>
+
+  <main id="game" class="screen">
+    <!-- TOP: Telemetry Strip + Question Card -->
+    <div class="top-console">
+      <div class="game-hud">
+        <div class="hud-left">
+          <div class="round">STAGE <b id="roundNum">1 / 7</b></div>
+          <div class="alt-pill" id="distance">0 MILES</div>
+        </div>
+        <div class="zonebadge" id="zoneBadge">🌍 Launchpad · Earth Atmosphere</div>
+      </div>
+
+      <section class="card question">
+        <div class="q-head">
+          <span class="qicon" id="qIcon">👟</span>
+          <h2 id="question">Name a sneaker brand.</h2>
+        </div>
+        <p>Dig into your bag. Rarer brands unlock higher cosmic tiers.</p>
+      </section>
+    </div>
+
+    <!-- MIDDLE: Unobstructed Open Space Window for the Rocket Ship & Journey -->
+    <div class="middle-sky-spacer" aria-hidden="true"></div>
+
+    <!-- BOTTOM: Timer Bar + Answer Bar + Compact Feedback -->
+    <div class="bottom-console">
+      <div class="timercluster">
+        <div class="timerrow">
+          <span>BURN WINDOW</span>
+          <div class="timer" id="timerReadout">◷ <span id="time">25</span>s</div>
+        </div>
+        <div class="timerbar"><div id="timerFill"></div></div>
+      </div>
+
+      <form class="answerrow" id="answerForm" novalidate>
+        <div class="inputwrap" id="inputWrap">
+          <span class="inputicon" id="inputIcon" aria-hidden="true">⌕</span>
+          <input
+            id="answer"
+            type="text"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            maxlength="45"
+            placeholder="Type any brand for thrust..."
+            aria-label="Your brand answer"
+          />
+          <div class="inputmeta">
+            <button type="button" class="clearbtn" id="clearBtn" aria-label="Clear input" tabindex="-1">✕</button>
+            <span class="keyhint" id="keyHint">ENTER ↵</span>
+          </div>
+        </div>
+        <button class="btn primary" type="submit" id="submitBtn">IGNITE ↗</button>
+      </form>
+
+      <div class="feedback" id="feedback">
+        <div class="feedback-main">
+          <div><div class="result">Thrusters armed...</div><small>Wrong guesses clear automatically so you can retry before the clock hits zero.</small></div>
+          <div class="points">—</div>
+        </div>
+      </div>
+
+      <div class="nextbar" id="nextBar">
+        <button type="button" class="btn primary" id="continueBtn">CONTINUE YOUR JOURNEY →</button>
+      </div>
+
+      <div class="bottomrow"><div>MULTI-REGISTRY BRAND VERIFICATION · CLOSE TYPOS PROMPT CONFIRMATION</div><button class="skip" id="skipBtn">Abort stage →</button></div>
+    </div>
+  </main>
+
+  <main id="results" class="screen">
+    <section class="resulthead">
+      <div class="medal" id="medal">🚀</div>
+      <div class="eyebrow">ROUND COMPLETE</div>
+      <h2 id="resultTitle">Solid Ball Knowledge.</h2>
+      <p id="resultSubtitle">Final distance from Earth:</p>
+      <div class="finalscore" id="finalScore">0 <span>MILES</span></div>
+      <div class="share-strip" id="shareStrip" aria-label="Stage rarity badges"></div>
+    </section>
+
+    <section class="card recap">
+      <h3>Flight Recap</h3>
+      <div class="recap-curve-card" id="finalCurveBox"></div>
+      <div class="recapstory" id="recapStory"></div>
+      <div class="recapgrid" id="recapStats"></div>
+      <div class="milestones" id="recapMilestones"></div>
+    </section>
+
+    <section class="card breakdown"><h3>Stage-by-stage telemetry</h3><div id="breakdown"></div></section>
+    <div class="resultbuttons">
+      <button class="btn sharebtn" id="copyBtn">COPY RESULT 📋</button>
+      <button class="btn primary" id="againBtn">LAUNCH AGAIN ↻</button>
+      <button class="btn secondary" id="homeBtn">MISSION CONTROL</button>
+    </div>
+  </main>
+  <div class="footer">BALLISTIC · ELITE BALL KNOWLEDGE IN DEEP SPACE</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const ROUND_SECONDS = 25, TOTAL_ROUNDS = 7, MILES_PER_POINT = 1000;
+
+// 5 Cosmic Rarity Tiers: 10, 25, 50, 75, 100
+const COSMIC_TIERS = {
+  10:  { name: "Space Dust",  icon: "✨", desc: "Household pick — barely cleared the launchpad." },
+  25:  { name: "Satellite",   icon: "🛰️", desc: "Solid mainstream pull — steady orbital burn." },
+  50:  { name: "Nebula",      icon: "🌌", desc: "Uncommon pull — beating the average pilot." },
+  75:  { name: "Supernova",   icon: "💥", desc: "Deep cut! Massive thruster ignition." },
+  100: { name: "Singularity", icon: "🕳️", desc: "ULTRA-RARE SINGULARITY! Maximum deep-space thrust." }
+};
+
+function snapToCosmicTier(rawPts){
+  if(rawPts >= 95) return 100;
+  if(rawPts >= 65) return 75;
+  if(rawPts >= 40) return 50;
+  if(rawPts >= 20) return 25;
+  return 10;
+}
+
+const getTierInfo = pts => COSMIC_TIERS[snapToCosmicTier(pts)] || COSMIC_TIERS[10];
+
+const categories = [
+  {
+    q: "Name a sneaker brand.",
+    icon: "👟",
+    keywords: ["sneaker", "shoe", "footwear", "athletic", "sportswear", "running", "skate", "trainer", "apparel", "sport", "boot", "sandal", "slipper", "clog"],
+    brands: {
+      // 10 — Space Dust
+      "Nike":10,"Adidas":10,"Jordan":10,"Air Jordan":10,"Converse":10,"Vans":10,"Puma":10,"Skechers":10,
+      // 25 — Satellite
+      "New Balance":25,"Reebok":25,"Under Armour":25,"Crocs":25,"Timberland":25,"Birkenstock":25,"UGG":25,
+      "Dr. Martens":25,"Champion":25,"Steve Madden":25,"ASICS":25,"Hoka":25,"Brooks":25,
+      // 50 — Nebula
+      "FILA":50,"On Running":50,"Salomon":50,"Saucony":50,"Mizuno":50,"Merrell":50,"DC Shoes":50,
+      "Umbro":50,"Kappa":50,"VEJA":50,"Allbirds":50,"Keen":50,"Teva":50,"Clarks":50,"Sperry":50,
+      "Cole Haan":50,"Ecco":50,"Golden Goose":50,"Rick Owens":50,"K-Swiss":50,"Etnies":50,
+      // 75 — Supernova
+      "Superga":75,"Diadora":75,"Karhu":75,"Onitsuka Tiger":75,"Altra":75,"Topo Athletic":75,
+      "La Sportiva":75,"Scarpa":75,"Chaco":75,"Geox":75,"Common Projects":75,"Axel Arigato":75,
+      "Autry":75,"Maison Mihara Yasuhiro":75,"Anta":75,"Li-Ning":75,"361 Degrees":75,"Peak":75,
+      "Le Coq Sportif":75,"Gola":75,"Feiyue":75,"Hummel":75,"Joma":75,"Inov-8":75,"Xero Shoes":75,
+      "Vivobarefoot":75,"Lems":75,"Lakai":75,"Emerica":75,"Osiris":75,"Globe":75,
+      // 100 — Singularity (2 ultra-rare picks)
+      "Novesta":100,"Stepney Workers Club":100
+    }
+  },
+  {
+    q: "Name a luxury fashion brand.",
+    icon: "👜",
+    keywords: ["fashion", "luxury", "couture", "clothing", "apparel", "handbag", "designer", "leather", "garment", "accessories", "jewelry", "watch", "tailor", "atelier", "haute", "menswear", "womenswear"],
+    brands: {
+      // 10 — Space Dust
+      "Louis Vuitton":10,"Gucci":10,"Chanel":10,"Prada":10,"Dior":10,"Versace":10,"Rolex":10,"Coach":10,
+      // 25 — Satellite
+      "Burberry":25,"Balenciaga":25,"Hermès":25,"YSL":25,"Saint Laurent":25,"Valentino":25,
+      "Michael Kors":25,"Kate Spade":25,"Tory Burch":25,"Ralph Lauren":25,"Giorgio Armani":25,
+      "Dolce & Gabbana":25,"Tiffany & Co.":25,"Cartier":25,"Hugo Boss":25,"Marc Jacobs":25,
+      // 50 — Nebula
+      "Bottega Veneta":50,"Loewe":50,"Celine":50,"Givenchy":50,"Fendi":50,"Moncler":50,"Miu Miu":50,
+      "Tom Ford":50,"Alexander McQueen":50,"Balmain":50,"Jimmy Choo":50,"Christian Louboutin":50,
+      "Manolo Blahnik":50,"Salvatore Ferragamo":50,"Kenzo":50,"Moschino":50,"Off-White":50,
+      "Acne Studios":50,"Jacquemus":50,"Chloé":50,"Max Mara":50,"Stone Island":50,"Canada Goose":50,
+      "Omega":50,"Patek Philippe":50,"Audemars Piguet":50,"Breitling":50,"TAG Heuer":50,"Bulgari":50,
+      "Van Cleef & Arpels":50,"Chrome Hearts":50,"Fear of God":50,"Amiri":50,"Goyard":50,
+      // 75 — Supernova
+      "Tod's":75,"Isabel Marant":75,"Lanvin":75,"Ermenegildo Zegna":75,"Brunello Cucinelli":75,
+      "Loro Piana":75,"Maison Margiela":75,"Rick Owens":75,"Comme des Garçons":75,"Yohji Yamamoto":75,
+      "Issey Miyake":75,"Dries Van Noten":75,"Jil Sander":75,"Marni":75,"Etro":75,"Missoni":75,
+      "Schiaparelli":75,"Alaïa":75,"Mugler":75,"Jean Paul Gaultier":75,"Coperni":75,"Lemaire":75,
+      "Ami Paris":75,"Maison Kitsuné":75,"Thom Browne":75,"Berluti":75,"John Lobb":75,"Brioni":75,
+      "Kiton":75,"Canali":75,"Vacheron Constantin":75,"Jaeger-LeCoultre":75,"IWC Schaffhausen":75,"Richard Mille":75,
+      // 100 — Singularity (2 ultra-rare picks)
+      "Delvaux":100,"Valextra":100
+    }
+  },
+  {
+    q: "Name a fast-food restaurant chain.",
+    icon: "🍔",
+    keywords: ["fast food", "fast-food", "restaurant", "burger", "pizza", "chicken", "taco", "sandwich", "coffee", "bakery", "diner", "drive-thru", "food chain", "quick-service", "sub", "cafe", "café", "wings", "ice cream", "smoothie", "donuts", "doughnut", "burrito"],
+    brands: {
+      // 10 — Space Dust
+      "McDonald's":10,"Burger King":10,"Wendy's":10,"Taco Bell":10,"Subway":10,"KFC":10,"Starbucks":10,"Domino's":10,"Chick-fil-A":10,
+      // 25 — Satellite
+      "Popeyes":25,"Chipotle":25,"Pizza Hut":25,"Five Guys":25,"Dairy Queen":25,"Little Caesars":25,
+      "Wingstop":25,"Dunkin'":25,"Panda Express":25,"Panera Bread":25,"Papa John's":25,"Jimmy John's":25,
+      "Jersey Mike's":25,"Raising Cane's":25,"In-N-Out":25,"Sonic":25,"Arby's":25,"Jack in the Box":25,"Krispy Kreme":25,
+      // 50 — Nebula
+      "Shake Shack":50,"Whataburger":50,"Culver's":50,"Carl's Jr.":50,"Hardee's":50,"White Castle":50,
+      "Zaxby's":50,"Bojangles":50,"Church's Chicken":50,"Tim Hortons":50,"Firehouse Subs":50,
+      "Auntie Anne's":50,"Cinnabon":50,"Baskin-Robbins":50,"Cold Stone Creamery":50,"Jamba Juice":50,
+      "Smoothie King":50,"Qdoba":50,"Moe's Southwest Grill":50,"Del Taco":50,"El Pollo Loco":50,
+      "Checkers":50,"Rally's":50,"Long John Silver's":50,"Blaze Pizza":50,"MOD Pizza":50,
+      "Steak 'n Shake":50,"Smashburger":50,"Freddy's":50,"Portillo's":50,"Jollibee":50,"Nando's":50,"Dave's Hot Chicken":50,
+      // 75 — Supernova
+      "Captain D's":75,"Noodles & Company":75,"Marco's Pizza":75,"Jet's Pizza":75,"Wienerschnitzel":75,
+      "Greggs":75,"Pret A Manger":75,"Mos Burger":75,"Yoshinoya":75,"Sukiya":75,"CoCo Ichibanya":75,
+      "Luckin Coffee":75,"Pollo Campero":75,"Pollo Tropical":75,"Cook Out":75,"Krystal":75,"Taco John's":75,
+      "Taco Cabana":75,"Rubio's":75,"Torchy's Tacos":75,"Velvet Taco":75,"Fatburger":75,"Habit Burger Grill":75,
+      "Braum's":75,"Skyline Chili":75,"Bonchon":75,"Potbelly":75,"Which Wich":75,"Schlotzsky's":75,
+      "McAlister's Deli":75,"Jason's Deli":75,"Capriotti's":75,
+      // 100 — Singularity (2 ultra-rare picks)
+      "Runza":100,"Mixue":100
+    }
+  },
+  {
+    q: "Name a car manufacturer.",
+    icon: "🚘",
+    keywords: ["car", "automobile", "automotive", "vehicle", "motor", "electric vehicle", "truck", "suv", "supercar", "hypercar", "marque", "automaker", "motorsport"],
+    brands: {
+      // 10 — Space Dust
+      "Toyota":10,"Honda":10,"Ford":10,"Chevrolet":10,"BMW":10,"Mercedes-Benz":10,"Tesla":10,"Nissan":10,"Jeep":10,
+      // 25 — Satellite
+      "Audi":25,"Hyundai":25,"Kia":25,"Volkswagen":25,"Porsche":25,"Ferrari":25,"Lamborghini":25,
+      "Dodge":25,"Subaru":25,"Mazda":25,"Lexus":25,"Volvo":25,"Ram":25,"GMC":25,"Cadillac":25,
+      "Acura":25,"Infiniti":25,"Rolls-Royce":25,"Land Rover":25,"Jaguar":25,"Mini":25,"Mitsubishi":25,"Bugatti":25,
+      // 50 — Nebula
+      "Aston Martin":50,"McLaren":50,"Rivian":50,"Lucid":50,"Buick":50,"Lincoln":50,"Chrysler":50,
+      "Genesis":50,"Alfa Romeo":50,"Fiat":50,"Maserati":50,"Bentley":50,"Suzuki":50,"Polestar":50,
+      "Lotus":50,"Smart":50,"BYD":50,"Renault":50,"Peugeot":50,"Citroën":50,"DeLorean":50,
+      "Pontiac":50,"Hummer":50,"Scion":50,"Saab":50,
+      // 75 — Supernova
+      "Koenigsegg":75,"Pagani":75,"Rimac":75,"Hennessey":75,"Fisker":75,"VinFast":75,"NIO":75,
+      "XPeng":75,"Li Auto":75,"Geely":75,"Zeekr":75,"Tata Motors":75,"Mahindra":75,"Isuzu":75,
+      "Daihatsu":75,"Alpine":75,"Opel":75,"Vauxhall":75,"Skoda":75,"SEAT":75,"Cupra":75,
+      "Dacia":75,"Lada":75,"Oldsmobile":75,"Saturn":75,"Mercury":75,"Caterham":75,"Morgan":75,
+      // 100 — Singularity (2 ultra-rare picks)
+      "TVR":100,"Ariel":100
+    }
+  },
+  {
+    q: "Name a technology company.",
+    icon: "💻",
+    keywords: ["technology", "software", "hardware", "computer", "electronics", "semiconductor", "internet", "cloud", "smartphone", "telecom", "audio", "gaming", "artificial intelligence", "robotics", "device", "cybersecurity", "processor", "fintech", "streaming"],
+    brands: {
+      // 10 — Space Dust
+      "Apple":10,"Microsoft":10,"Google":10,"Samsung":10,"Amazon":10,"Sony":10,"Meta":10,"Netflix":10,"Nintendo":10,
+      // 25 — Satellite
+      "Nvidia":25,"Intel":25,"AMD":25,"Dell":25,"HP":25,"Lenovo":25,"ASUS":25,"Spotify":25,"Bose":25,
+      "Uber":25,"Airbnb":25,"Adobe":25,"Logitech":25,"IBM":25,"Oracle":25,"Zoom":25,"LG":25,
+      "Panasonic":25,"Dyson":25,"PayPal":25,"Beats":25,"JBL":25,"OpenAI":25,"SpaceX":25,"Nokia":25,"Motorola":25,
+      // 50 — Nebula
+      "Cisco":50,"Anker":50,"Sonos":50,"DJI":50,"Razer":50,"Corsair":50,"Acer":50,"MSI":50,
+      "Alienware":50,"OnePlus":50,"Xiaomi":50,"Huawei":50,"Garmin":50,"GoPro":50,"Roku":50,
+      "Philips":50,"Salesforce":50,"Shopify":50,"Stripe":50,"Square":50,"Slack":50,"Dropbox":50,
+      "Intuit":50,"Autodesk":50,"SAP":50,"Qualcomm":50,"Western Digital":50,"Seagate":50,"SanDisk":50,
+      "Ring":50,"Nest":50,"Sennheiser":50,"Canva":50,"Valve":50,"Epic Games":50,
+      // 75 — Supernova
+      "Gigabyte":75,"Atlassian":75,"ServiceNow":75,"Snowflake":75,"Databricks":75,"Palantir":75,
+      "Cloudflare":75,"CrowdStrike":75,"Broadcom":75,"Micron":75,"Kingston":75,"Netgear":75,
+      "TP-Link":75,"Ubiquiti":75,"Bang & Olufsen":75,"ASML":75,"Nothing":75,"TSMC":75,"ARM":75,
+      "Texas Instruments":75,"Figma":75,"Notion":75,"Anthropic":75,"Boston Dynamics":75,"Ericsson":75,
+      "Siemens":75,"Honeywell":75,"Raspberry Pi":75,"Unity":75,"Wacom":75,"BenQ":75,"Noctua":75,
+      "SteelSeries":75,"Shure":75,
+      // 100 — Singularity (2 ultra-rare picks)
+      "Teenage Engineering":100,"Framework":100
+    }
+  },
+  {
+    q: "Name a cosmetics or skincare brand.",
+    icon: "🧴",
+    keywords: ["cosmetic", "skincare", "skin care", "makeup", "beauty", "fragrance", "perfume", "haircare", "personal care", "dermatolog", "lotion", "serum", "soap", "cleanser", "moisturizer", "lipstick", "mascara", "sunscreen"],
+    brands: {
+      // 10 — Space Dust
+      "Maybelline":10,"L'Oréal":10,"MAC":10,"Sephora":10,"CeraVe":10,"Neutrogena":10,"Dove":10,"Nivea":10,"e.l.f.":10,
+      // 25 — Satellite
+      "NYX":25,"Olay":25,"Clinique":25,"Estée Lauder":25,"Glossier":25,"Fenty Beauty":25,"Rare Beauty":25,
+      "The Ordinary":25,"Garnier":25,"Revlon":25,"CoverGirl":25,"La Roche-Posay":25,"Charlotte Tilbury":25,
+      "NARS":25,"Urban Decay":25,"Cetaphil":25,"Aveeno":25,"Vaseline":25,"Aquaphor":25,"Burt's Bees":25,
+      "Lush":25,"Bath & Body Works":25,"Kylie Cosmetics":25,
+      // 50 — Nebula
+      "Lancôme":50,"Kiehl's":50,"Drunk Elephant":50,"Tatcha":50,"Aesop":50,"Laneige":50,"COSRX":50,
+      "Too Faced":50,"Benefit":50,"Bobbi Brown":50,"Smashbox":50,"Anastasia Beverly Hills":50,
+      "Huda Beauty":50,"Milk Makeup":50,"Tower 28":50,"Saie":50,"Ilia":50,"Merit":50,"Summer Fridays":50,
+      "Sol de Janeiro":50,"Paula's Choice":50,"Glow Recipe":50,"Eucerin":50,"Bioderma":50,"Origins":50,
+      "Aveda":50,"The Body Shop":50,"Morphe":50,"ColourPop":50,"Milani":50,"Wet n Wild":50,"Rimmel":50,
+      "Shiseido":50,"Innisfree":50,"Mario Badescu":50,"Murad":50,"Dermalogica":50,"First Aid Beauty":50,
+      "Youth To The People":50,"Sunday Riley":50,"Ole Henriksen":50,"Fresh":50,"Caudalie":50,"Vichy":50,
+      "La Mer":50,"Byredo":50,"Le Labo":50,"Diptyque":50,"Jo Malone":50,"Pat McGrath Labs":50,
+      "Kosas":50,"Haus Labs":50,"Biore":50,"SkinCeuticals":50,"EltaMD":50,"Vanicream":50,"Hero Cosmetics":50,"Olaplex":50,
+      // 75 — Supernova
+      "Physicians Formula":75,"Kiko Milano":75,"SK-II":75,"Sulwhasoo":75,"Etude":75,"Missha":75,
+      "Banila Co":75,"Peter Thomas Roth":75,"Nuxe":75,"Avène":75,"Augustinus Bader":75,"Sisley Paris":75,
+      "Guerlain":75,"Natasha Denona":75,"Jones Road":75,"Hada Labo":75,"DHC":75,"Shu Uemura":75,
+      "Dr. Barbara Sturm":75,"Obagi":75,"Good Molecules":75,"Naturium":75,"Byoma":75,
+      // 100 — Singularity (2 ultra-rare picks)
+      "Biologique Recherche":100,"Westman Atelier":100
+    }
+  },
+  {
+    q: "Name a sportswear or outdoor brand.",
+    icon: "🏔️",
+    keywords: ["sportswear", "outdoor", "athletic", "activewear", "apparel", "clothing", "hiking", "climbing", "mountaineering", "running", "cycling", "surf", "skate", "ski", "footwear", "gear", "camping", "backpack", "snowboard"],
+    brands: {
+      // 10 — Space Dust
+      "Nike":10,"Adidas":10,"Under Armour":10,"Puma":10,"The North Face":10,"Patagonia":10,"Columbia":10,"Lululemon":10,
+      // 25 — Satellite
+      "Reebok":25,"Champion":25,"Carhartt":25,"Oakley":25,"Vans":25,"Converse":25,"New Balance":25,
+      "ASICS":25,"Arc'teryx":25,"REI":25,"Timberland":25,"Canada Goose":25,"Speedo":25,"Wilson":25,
+      "Yeti":25,"Hydro Flask":25,"Stanley":25,"Gymshark":25,"Alo Yoga":25,
+      // 50 — Nebula
+      "Fila":50,"Mammut":50,"Marmot":50,"Helly Hansen":50,"Fjällräven":50,"Salomon":50,"Black Diamond":50,
+      "Cotopaxi":50,"Vuori":50,"Athleta":50,"Fabletics":50,"Eddie Bauer":50,"L.L.Bean":50,"Lands' End":50,
+      "Merrell":50,"Keen":50,"Sorel":50,"Burton":50,"Quiksilver":50,"Billabong":50,"Roxy":50,
+      "Volcom":50,"Hurley":50,"Rip Curl":50,"O'Neill":50,"Head":50,"Babolat":50,"Yonex":50,
+      "Mizuno":50,"Saucony":50,"Brooks":50,"Hoka":50,"On Running":50,"Osprey":50,"CamelBak":50,
+      "Specialized":50,"Trek":50,"Cannondale":50,"Mountain Hardwear":50,"Outdoor Research":50,
+      // 75 — Supernova
+      "Sweaty Betty":75,"Outdoor Voices":75,"Arena":75,"TYR":75,"Umbro":75,"Kappa":75,"Castore":75,
+      "Rab":75,"Montbell":75,"Gregory":75,"Deuter":75,"Kelty":75,"Big Agnes":75,"MSR":75,
+      "Sea to Summit":75,"Petzl":75,"La Sportiva":75,"Scarpa":75,"Salewa":75,"Dynafit":75,
+      "Norrøna":75,"Haglöfs":75,"Jack Wolfskin":75,"Vaude":75,"Rossignol":75,"K2":75,"Atomic":75,
+      "Smith Optics":75,"POC":75,"Giro":75,"Rapha":75,"Castelli":75,"Assos":75,"Tracksmith":75,
+      "Satisfy":75,"Ten Thousand":75,"Rhone":75,"Kuhl":75,"PrAna":75,"Filson":75,"Orvis":75,
+      // 100 — Singularity (2 ultra-rare picks)
+      "Klättermusen":100,"Ortovox":100
+    }
+  }
+];
+
+const ALIASES = {
+  "vw":"volkswagen","chevy":"chevrolet","mercedes":"mercedesbenz","merc":"mercedesbenz",
+  "lambo":"lamborghini","rolls":"rollsroyce","aston":"astonmartin","jag":"jaguar",
+  "landrover":"landrover","rangerover":"landrover","alfaromeo":"alfaromeo",
+  "lv":"louisvuitton","saintlaurent":"ysl","yvessaintlaurent":"ysl","cdg":"commedesgarcons",
+  "margiela":"maisonmargiela","bottega":"bottegaveneta","cucinelli":"brunellocucinelli",
+  "louboutin":"christianlouboutin","mcqueen":"alexandermcqueen","ferragamo":"salvatoreferragamo",
+  "zegna":"ermenegildozegna","vancleef":"vancleefandarpels","ap":"audemarspiguet",
+  "patek":"patekphilippe","jlc":"jaegerlecoultre","iwc":"iwcschaffhausen","vacheron":"vacheronconstantin",
+  "nb":"newbalance","ua":"underarmour","on":"onrunning","oncloud":"onrunning","asics":"asics",
+  "docs":"drmartens","docmartens":"drmartens","drmartens":"drmartens","timbs":"timberland",
+  "birks":"birkenstock","uggs":"ugg","dc":"dcshoes","onitsuka":"onitsukatiger",
+  "tnf":"thenorthface","northface":"thenorthface","lulu":"lululemon","arcteryx":"arcteryx",
+  "fjallraven":"fjallraven","llbean":"llbean","mhw":"mountainhardwear","or":"outdoorresearch",
+  "bk":"burgerking","dq":"dairyqueen","canes":"raisingcanes","innoutburger":"innout",
+  "maccas":"mcdonalds","dunkindonuts":"dunkin","kentuckyfriedchicken":"kfc",
+  "churchs":"churchschicken","littlecaesar":"littlecaesars","papajohns":"papajohns",
+  "jimmyjohns":"jimmyjohns","jerseymikes":"jerseymikes","chickfila":"chickfila",
+  "moes":"moessouthwestgrill","jamba":"jambajuice","coldstone":"coldstonecreamery",
+  "baskinrobbins":"baskinrobbins","krispykreme":"krispykreme","timhortons":"timhortons",
+  "sk2":"skii","elfcosmetics":"elf","maccosmetics":"mac","larocheposay":"larocheposay",
+  "kiehls":"kiehls","fenty":"fentybeauty","rare":"rarebeauty","abh":"anastasiabeverlyhills",
+  "huda":"hudabeauty","kylie":"kyliecosmetics","paulaschoice":"paulaschoice",
+  "burtsbees":"burtsbees","bathandbodyworks":"bathandbodyworks","bbw":"bathandbodyworks",
+  "hewlettpackard":"hp","rpi":"raspberrypi","ti":"texasinstruments","wd":"westerndigital",
+  "bose":"bose","bno":"bangandolufsen","bangolufsen":"bangandolufsen","fb":"meta","facebook":"meta",
+  "instagram":"meta","ig":"meta","yt":"google","youtube":"google","aws":"amazon"
+};
+
+const BRAND_QIDS = new Set([
+  "Q4830453","Q431289","Q783794","Q167270","Q6881511","Q891723","Q1589009",
+  "Q21980538","Q1616075","Q786820","Q1145276","Q18388277","Q17156793",
+  "Q206652","Q1320047","Q507619","Q161726","Q18553442","Q1762621","Q1156831",
+  "Q134161","Q2401749","Q1058914","Q7397","Q1137109","Q210167","Q484652"
+]);
+
+const ENTITY_WORDS = [
+  "brand","company","corporation","manufacturer","chain","restaurant","automaker",
+  "fashion","clothing","footwear","sneaker","cosmetics","skincare","software",
+  "technology","electronics","retailer","label","marque","enterprise","subsidiary",
+  "division","conglomerate","maker","producer","studio","house","business","trademark",
+  "product line","fast food","coffeehouse","bakery","bakery-cafe","activewear","sportswear"
+];
+
+const onlineCache = new Map();
+const formatMiles = n => n.toLocaleString("en-US");
+
+const getCosmicZone = miles => {
+  if(miles === 0) return "🌍 Launchpad · Earth Atmosphere";
+  if(miles < 22236) return "🛰️ Low / Medium Earth Orbit";
+  if(miles < 120000) return "☄️ Inner Meteorite Stream";
+  if(miles < 238900) return "🌒 Cislunar Space (Approaching Moon)";
+  if(miles < 360000) return "🌕 Past the Moon! (Lunar Flyby)";
+  if(miles < 500000) return "☄️ Outer Asteroid Belt";
+  return "🪐 Deep Space · Ringed Frontier";
+};
+
+const $ = id => document.getElementById(id);
+
+let rounds=[], idx=0, totalMiles=0, answers=[], timer=null, timeLeft=ROUND_SECONDS;
+let locked=false, checking=false, roundToken=0, lockedAt=0, mode="daily";
+let pendingSuggestion = null, lastShareText = "";
+
+// Standard Normal CDF approximation
+function normalCDF(z){
+  const sign = z < 0 ? -1 : 1;
+  const x = Math.abs(z) / Math.SQRT2;
+  const t = 1 / (1 + 0.3275911 * x);
+  const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429;
+  const erf = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+  return 0.5 * (1 + sign * erf);
+}
+
+function getTopPercent(value, mean, std){
+  if(value <= 0) return { label: "99", beaten: 1, z: -2.6 };
+  const z = (value - mean) / std;
+  const cdf = normalCDF(z);
+  const rawTop = (1 - cdf) * 100;
+  let label;
+  if(rawTop < 1) label = "0.5";
+  else if(rawTop > 99) label = "99";
+  else label = String(Math.round(rawTop));
+  const beaten = Math.max(1, Math.min(99, Math.round(cdf * 100)));
+  return { label, beaten, z };
+}
+
+// End-of-Round Normal Distribution Bell Curve
+function buildBellCurveHTML({ value, mean, std, context, uid }){
+  const { label, beaten, z } = getTopPercent(value, mean, std);
+  const zClamped = Math.max(-2.95, Math.min(2.95, z));
+
+  const W = 340, baseY = 74, peakH = 56, leftX = 16, rightX = 324, midX = 170, halfW = 154;
+  const toX = zv => midX + (zv / 3) * halfW;
+  const toY = zv => baseY - Math.exp(-0.5 * zv * zv) * peakH;
+
+  let fullPath = `M ${leftX} ${baseY}`;
+  let strokePath = "";
+  for(let i = 0; i <= 60; i++){
+    const zv = -3 + (i / 60) * 6;
+    const px = toX(zv).toFixed(1);
+    const py = toY(zv).toFixed(1);
+    fullPath += ` L ${px} ${py}`;
+    strokePath += (i === 0 ? `M ${px} ${py}` : ` L ${px} ${py}`);
+  }
+  fullPath += ` L ${rightX} ${baseY} Z`;
+
+  const userX = toX(zClamped);
+  const userY = toY(zClamped);
+
+  let tailPath = `M ${userX.toFixed(1)} ${baseY} L ${userX.toFixed(1)} ${userY.toFixed(1)}`;
+  const startStep = Math.ceil(((zClamped + 3) / 6) * 60);
+  for(let i = startStep; i <= 60; i++){
+    const zv = -3 + (i / 60) * 6;
+    tailPath += ` L ${toX(zv).toFixed(1)} ${toY(zv).toFixed(1)}`;
+  }
+  tailPath += ` L ${rightX} ${baseY} Z`;
+
+  const pillX = Math.max(36, Math.min(304, userX));
+
+  return `
+    <div class="curve-box">
+      <div class="curve-head">
+        <span class="curve-rank">TOP ${label}%</span>
+        <span class="curve-desc">${value > 0 ? `Outperformed ${beaten}% of pilots · ${context}` : `0 mi thrust · ${context}`}</span>
+      </div>
+      <svg class="curve-svg" viewBox="0 0 ${W} 94" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Normal curve showing Top ${label}%">
+        <defs>
+          <linearGradient id="tailGrad_${uid}" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.58"/>
+            <stop offset="100%" stop-color="#a855f7" stop-opacity="0.72"/>
+          </linearGradient>
+        </defs>
+        <path d="${fullPath}" fill="rgba(148, 163, 184, 0.12)"/>
+        <path d="${tailPath}" fill="url(#tailGrad_${uid})"/>
+        <line x1="${midX}" y1="16" x2="${midX}" y2="${baseY}" stroke="rgba(148, 163, 184, 0.32)" stroke-width="1" stroke-dasharray="3 3"/>
+        <path d="${strokePath}" fill="none" stroke="rgba(186, 230, 253, 0.65)" stroke-width="1.8"/>
+        <line x1="${leftX}" y1="${baseY}" x2="${rightX}" y2="${baseY}" stroke="rgba(148, 163, 184, 0.25)" stroke-width="1"/>
+        <line x1="${userX.toFixed(1)}" y1="${userY.toFixed(1)}" x2="${userX.toFixed(1)}" y2="${baseY}" stroke="#38bdf8" stroke-width="2"/>
+        <circle cx="${userX.toFixed(1)}" cy="${userY.toFixed(1)}" r="4.5" fill="#38bdf8" stroke="#ffffff" stroke-width="1.5"/>
+        <rect x="${(pillX - 24).toFixed(1)}" y="2" width="48" height="13" rx="6.5" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+        <text x="${pillX.toFixed(1)}" y="11" text-anchor="middle" fill="#e0f2fe" font-size="8" font-weight="800" letter-spacing="0.6">YOU</text>
+        <text x="${leftX}" y="88" text-anchor="start" fill="#64748b" font-size="8.5" font-weight="700">COMMON</text>
+        <text x="${midX}" y="88" text-anchor="middle" fill="#94a3b8" font-size="8.5" font-weight="700">AVG</text>
+        <text x="${rightX}" y="88" text-anchor="end" fill="#c084fc" font-size="8.5" font-weight="700">ELITE</text>
+      </svg>
+    </div>
+  `;
+}
+
+function show(id){
+  document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));
+  $(id).classList.add("active");
+  document.body.classList.toggle("in-game", id === "game");
+}
+
+function toast(msg){
+  $("toast").textContent = msg;
+  $("toast").classList.add("show");
+  setTimeout(()=>$("toast").classList.remove("show"), 2200);
+}
+
+function shuffle(a, seed=null){
+  let b=[...a];
+  let random = seed===null ? Math.random : (()=>{
+    let x=seed>>>0;
+    return ()=>{
+      x=(x+0x6D2B79F5)|0;
+      let t=Math.imul(x^(x>>>15),1|x);
+      t=(t+Math.imul(t^(t>>>7),61|t))^t;
+      return ((t^(t>>>14))>>>0)/4294967296;
+    };
+  })();
+  for(let i=b.length-1;i>0;i--){
+    let j=Math.floor(random()*(i+1));
+    [b[i],b[j]]=[b[j],b[i]];
+  }
+  return b;
+}
+
+function updateTelemetry(boosted=false){
+  $("distance").textContent = `${formatMiles(totalMiles)} MILES`;
+  $("zoneBadge").textContent = getCosmicZone(totalMiles);
+
+  // Map 0..500,000 miles across the middle flight corridor (10% -> 91%, with Moon at 48.7%)
+  const ratio = Math.min(1, totalMiles / 500000);
+  const shipLeft = 10 + ratio * 81;
+  const fillWidth = ratio * 81;
+
+  $("flightFill").style.width = fillWidth + "%";
+  $("rocketMarker").style.left = shipLeft + "%";
+
+  if(boosted){
+    $("rocketMarker").classList.add("boosting");
+    setTimeout(()=>$("rocketMarker").classList.remove("boosting"), 950);
+  }
+}
+
+function showContinueButton(){
+  const isFinal = idx >= TOTAL_ROUNDS - 1;
+  $("continueBtn").textContent = isFinal ? "VIEW ROUND RECAP 🏁" : "CONTINUE YOUR JOURNEY →";
+  $("nextBar").classList.add("show");
+  $("skipBtn").style.visibility = "hidden";
+}
+
+function advanceStage(){
+  if(!locked) return;
+  idx++;
+  if(idx >= TOTAL_ROUNDS) finishGame();
+  else renderRound();
+}
+
+function clearSuggestion(resetFeedback=false){
+  if(!pendingSuggestion) return;
+  pendingSuggestion = null;
+  $("inputWrap").classList.remove("suggest");
+  if(!locked){
+    $("inputIcon").textContent = "⌕";
+    $("submitBtn").classList.remove("confirming");
+    $("submitBtn").textContent = "IGNITE ↗";
+  }
+  if(resetFeedback && !locked){
+    $("feedback").className = "feedback";
+    $("feedback").innerHTML = `
+      <div class="feedback-main">
+        <div><div class="result">Thrusters armed...</div><small>Wrong guesses clear automatically so you can retry before the clock hits zero.</small></div>
+        <div class="points">—</div>
+      </div>`;
+  }
+}
+
+function showSuggestion(candidate){
+  pendingSuggestion = candidate;
+  $("inputWrap").classList.remove("miss", "shake");
+  $("inputWrap").classList.add("suggest");
+  $("inputIcon").textContent = "✦";
+  $("submitBtn").classList.add("confirming");
+  $("submitBtn").textContent = "CONFIRM ↵";
+
+  $("feedback").className = "feedback didyoumean";
+  $("feedback").innerHTML = `
+    <div class="feedback-main">
+      <div>
+        <div class="result">Did you mean ${escapeHtml(candidate.name)}?</div>
+        <small>Press <b>ENTER</b> to submit <b>${escapeHtml(candidate.name)}</b>, or keep typing to edit.</small>
+      </div>
+      <button type="button" class="suggestchip" id="acceptSuggestBtn">USE ${escapeHtml(candidate.name.toUpperCase())} ↵</button>
+    </div>
+  `;
+
+  $("acceptSuggestBtn").onclick = () => {
+    if(pendingSuggestion) confirmValidBrand(pendingSuggestion);
+  };
+  $("answer").focus();
+}
+
+function syncInputState(){
+  const hasText = $("answer").value.trim().length > 0;
+  $("inputWrap").classList.toggle("has-text", hasText);
+}
+
+function triggerShake(){
+  const wrap = $("inputWrap");
+  wrap.classList.remove("shake");
+  void wrap.offsetWidth;
+  wrap.classList.add("shake");
+}
+
+function startGame(which){
+  mode = which;
+  const today = new Date();
+  const seed = Number(`${today.getFullYear()}${today.getMonth()+1}${today.getDate()}`);
+  rounds = shuffle(categories, which==="daily"?seed:null).slice(0, TOTAL_ROUNDS);
+  idx = 0;
+  totalMiles = 0;
+  answers = [];
+  show("game");
+  updateTelemetry(false);
+  renderRound();
+}
+
+function renderRound(){
+  roundToken++;
+  locked = false;
+  checking = false;
+  pendingSuggestion = null;
+  timeLeft = ROUND_SECONDS;
+  const c = rounds[idx];
+  $("roundNum").textContent = `${idx+1} / ${TOTAL_ROUNDS}`;
+  $("qIcon").textContent = c.icon;
+  $("question").textContent = c.q;
+
+  $("answer").value = "";
+  $("answer").disabled = false;
+  $("inputWrap").className = "inputwrap";
+  $("inputIcon").textContent = "⌕";
+  $("submitBtn").disabled = false;
+  $("submitBtn").classList.remove("confirming");
+  $("submitBtn").textContent = "IGNITE ↗";
+
+  $("nextBar").classList.remove("show");
+  $("skipBtn").style.visibility = "visible";
+
+  $("feedback").className = "feedback";
+  $("feedback").innerHTML = `
+    <div class="feedback-main">
+      <div><div class="result">Thrusters armed...</div><small>Wrong guesses clear automatically so you can retry before the clock hits zero.</small></div>
+      <div class="points">—</div>
+    </div>`;
+  $("answer").focus();
+
+  updateTimer();
+  clearInterval(timer);
+  timer = setInterval(()=>{
+    if(checking || locked) return;
+    timeLeft--;
+    updateTimer();
+    if(timeLeft<=0){
+      clearInterval(timer);
+      if(!locked) handleTimeout();
+    }
+  }, 1000);
+}
+
+function updateTimer(){
+  $("time").textContent = timeLeft;
+  $("timerFill").style.width = (timeLeft/ROUND_SECONDS*100) + "%";
+  const urgent = timeLeft <= 7;
+  $("timerReadout").classList.toggle("urgent", urgent);
+  $("timerFill").style.background = urgent
+    ? "linear-gradient(90deg,#fb7185,#fbbf24)"
+    : "linear-gradient(90deg,var(--cyan),var(--violet))";
+  $("inputWrap").classList.toggle("urgent", urgent && !locked);
+}
+
+function normalize(s){
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[øØ]/g, "o")
+    .replace(/[æÆ]/g, "ae")
+    .replace(/[œŒ]/g, "oe")
+    .replace(/ß/g, "ss")
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function editDistance(a, b){
+  const dp = Array.from({length: a.length + 1}, (_, i) => [i]);
+  for(let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for(let i = 1; i <= a.length; i++){
+    for(let j = 1; j <= b.length; j++){
+      dp[i][j] = a[i-1] === b[j-1]
+        ? dp[i-1][j-1]
+        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+function isCloseMatch(inputNorm, brandNorm){
+  const maxLen = Math.max(inputNorm.length, brandNorm.length);
+  if(maxLen < 4 || inputNorm.length < 3) return 0;
+  const maxEdits = maxLen >= 7 ? 2 : 1;
+  const dist = editDistance(inputNorm, brandNorm);
+  return dist <= maxEdits ? dist : 0;
+}
+
+function lookupLocal(c, answer){
+  let target = normalize(answer);
+  if(!target) return null;
+  target = ALIASES[target] || target;
+
+  for(const [name, rawPts] of Object.entries(c.brands)){
+    let key = normalize(name);
+    key = ALIASES[key] || key;
+    if(key === target){
+      return {exact:true, name, points: snapToCosmicTier(rawPts), source:"local"};
+    }
+  }
+
+  let best = null;
+  for(const [name, rawPts] of Object.entries(c.brands)){
+    const key = normalize(name);
+    const dist = isCloseMatch(target, key);
+    if(dist > 0 && (!best || dist < best.dist)){
+      best = {exact:false, name, points: snapToCosmicTier(rawPts), dist, source:"local"};
+    }
+  }
+  return best;
+}
+
+// Check if the input is a real brand in one of the OTHER built-in categories
+function lookupOtherLocalCategory(currentCategory, answer){
+  let target = normalize(answer);
+  if(!target) return null;
+  target = ALIASES[target] || target;
+
+  for(const cat of categories){
+    if(cat.q === currentCategory.q) continue;
+    for(const name of Object.keys(cat.brands)){
+      let key = normalize(name);
+      key = ALIASES[key] || key;
+      if(key === target) return name;
+    }
+  }
+  return null;
+}
+
+function fetchWithTimeout(url, ms=3200){
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(id));
+}
+
+// Live web-verified brands snap to Space Dust (10), Satellite (25), Nebula (50), or Supernova (75)
+// Singularity (100) stays reserved for hand-curated ultra-rare picks!
+function scoreFromSitelinks(count){
+  if(count >= 75) return 10; // Space Dust
+  if(count >= 45) return 25; // Satellite
+  if(count >= 20) return 50; // Nebula
+  return 75;                 // Supernova
+}
+
+// 1. Clearbit Brand & Company Directory
+async function queryClearbitDirectory(rawAnswer){
+  try{
+    const url = `https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(rawAnswer.trim())}`;
+    const res = await fetchWithTimeout(url, 2800);
+    if(!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  }catch{
+    return [];
+  }
+}
+
+// 2. DuckDuckGo Knowledge Graph Instant Answer API
+async function queryDuckDuckGo(query){
+  try{
+    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+    const res = await fetchWithTimeout(url, 3000);
+    if(!res.ok) return null;
+    return await res.json();
+  }catch{
+    return null;
+  }
+}
+
+// 3. Wikidata Structured Brand/Company Graph
+async function queryWikidataEntities(rawAnswer){
+  try{
+    const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(rawAnswer.trim())}&language=en&limit=12&format=json&origin=*`;
+    const searchRes = await fetchWithTimeout(searchUrl, 3200);
+    const searchData = await searchRes.json();
+    const hits = searchData?.search || [];
+    if(!hits.length) return [];
+
+    const ids = hits.map(h => h.id).join("|");
+    const entUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${ids}&props=labels|aliases|descriptions|claims|sitelinks&languages=en&format=json&origin=*`;
+    const entRes = await fetchWithTimeout(entUrl, 3200);
+    const entData = await entRes.json();
+    const entities = entData?.entities || {};
+    return hits.map(h => entities[h.id]).filter(Boolean);
+  }catch{
+    return [];
+  }
+}
+
+async function fetchWikiSummary(title){
+  if(!title) return "";
+  try{
+    const url = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&exsentences=4&redirects=1&titles=${encodeURIComponent(title)}&format=json&origin=*`;
+    const res = await fetchWithTimeout(url, 2800);
+    const data = await res.json();
+    const pages = data?.query?.pages || {};
+    const page = Object.values(pages)[0];
+    return (page?.extract || "").toLowerCase();
+  }catch{
+    return "";
+  }
+}
+
+// Multi-source brand verification (Clearbit + DuckDuckGo + Wikidata)
+async function verifyBrandOnline(c, rawAnswer){
+  const normInput = ALIASES[normalize(rawAnswer)] || normalize(rawAnswer);
+  if(!normInput || normInput.length < 2) return null;
+
+  const cacheKey = `${c.q}::${normInput}`;
+  if(onlineCache.has(cacheKey)) return onlineCache.get(cacheKey);
+
+  const otherLocal = lookupOtherLocalCategory(c, rawAnswer);
+  if(otherLocal){
+    const wrongCat = { wrongCategory: true, name: otherLocal };
+    onlineCache.set(cacheKey, wrongCat);
+    return wrongCat;
+  }
+
+  let closeCandidate = null;
+  let confirmedWrongCategoryName = null;
+
+  const [clearbitHits, wdEntities, ddgData] = await Promise.all([
+    queryClearbitDirectory(rawAnswer),
+    queryWikidataEntities(rawAnswer),
+    queryDuckDuckGo(rawAnswer.trim())
+  ]);
+
+  const matchName = candidateName => {
+    const normCand = ALIASES[normalize(candidateName)] || normalize(candidateName);
+    if(!normCand) return { match: false, exact: false, dist: Infinity };
+    if(normCand === normInput) return { match: true, exact: true, dist: 0 };
+    const stripped = normCand.replace(/(inc|llc|ltd|corp|corporation|company|co|group|brand|brands|official|usa|global)$/g, "");
+    if(stripped && stripped === normInput) return { match: true, exact: true, dist: 0 };
+    const d = isCloseMatch(normInput, normCand);
+    if(d > 0) return { match: true, exact: false, dist: d };
+    return { match: false, exact: false, dist: Infinity };
+  };
+
+  for(const ent of wdEntities){
+    const label = ent.labels?.en?.value || "";
+    const aliasList = (ent.aliases?.en || []).map(a => a.value);
+    const allNames = [label, ...aliasList].filter(Boolean);
+
+    let bestNameMatch = { match: false, exact: false, dist: Infinity };
+    for(const n of allNames){
+      const m = matchName(n);
+      if(m.match && (!bestNameMatch.match || m.exact || m.dist < bestNameMatch.dist)){
+        bestNameMatch = m;
+        if(m.exact) break;
+      }
+    }
+    if(!bestNameMatch.match) continue;
+
+    const desc = (ent.descriptions?.en?.value || "").toLowerCase();
+    const p31Claims = ent.claims?.P31 || [];
+    const hasBrandQid = p31Claims.some(cl => BRAND_QIDS.has(cl?.mainsnak?.datavalue?.value?.id));
+    const hasOfficialSite = Boolean(ent.claims?.P856?.length);
+    const hasBrandWord = ENTITY_WORDS.some(w => desc.includes(w));
+
+    if(!hasBrandQid && !hasBrandWord && !hasOfficialSite) continue;
+
+    let textToCheck = desc;
+    let matchesCategory = c.keywords.some(kw => textToCheck.includes(kw));
+
+    if(!matchesCategory && ddgData?.AbstractText){
+      textToCheck += " " + ddgData.AbstractText.toLowerCase();
+      matchesCategory = c.keywords.some(kw => textToCheck.includes(kw));
+    }
+
+    if(!matchesCategory){
+      const enWikiTitle = ent.sitelinks?.enwiki?.title || label;
+      const summary = await fetchWikiSummary(enWikiTitle);
+      textToCheck += " " + summary;
+      matchesCategory = c.keywords.some(kw => textToCheck.includes(kw));
+    }
+
+    const sitelinkCount = Object.keys(ent.sitelinks || {}).length;
+    if(matchesCategory){
+      const result = {
+        exact: bestNameMatch.exact,
+        name: label || rawAnswer.trim(),
+        points: scoreFromSitelinks(sitelinkCount),
+        source: "registry",
+        dist: bestNameMatch.dist
+      };
+      if(result.exact){
+        onlineCache.set(cacheKey, result);
+        return result;
+      } else if(!closeCandidate || result.dist < closeCandidate.dist){
+        closeCandidate = result;
+      }
+    } else if(bestNameMatch.exact && (hasBrandQid || hasBrandWord)){
+      confirmedWrongCategoryName = label || rawAnswer.trim();
+    }
+  }
+
+  for(const cb of clearbitHits){
+    if(!cb?.name) continue;
+    const m = matchName(cb.name);
+    if(!m.match) continue;
+
+    const catHint = c.keywords[0];
+    const contextDdg = await queryDuckDuckGo(`${cb.name} ${catHint}`);
+    const contextText = `${cb.name} ${cb.domain || ""} ${ddgData?.AbstractText || ""} ${contextDdg?.AbstractText || ""} ${contextDdg?.Heading || ""}`.toLowerCase();
+    const matchesCategory = c.keywords.some(kw => contextText.includes(kw));
+
+    if(matchesCategory){
+      const result = {
+        exact: m.exact,
+        name: cb.name,
+        points: 50, // Nebula tier for directory-verified niche brands
+        source: "directory",
+        dist: m.dist
+      };
+      if(result.exact){
+        onlineCache.set(cacheKey, result);
+        return result;
+      } else if(!closeCandidate || result.dist < closeCandidate.dist){
+        closeCandidate = result;
+      }
+    } else if(m.exact && !confirmedWrongCategoryName){
+      confirmedWrongCategoryName = cb.name;
+    }
+  }
+
+  if(closeCandidate){
+    onlineCache.set(cacheKey, closeCandidate);
+    return closeCandidate;
+  }
+
+  if(confirmedWrongCategoryName){
+    const wrongCat = { wrongCategory: true, name: confirmedWrongCategoryName };
+    onlineCache.set(cacheKey, wrongCat);
+    return wrongCat;
+  }
+
+  onlineCache.set(cacheKey, null);
+  return null;
+}
+
+function rejectAnswer(badText, customTitle=null, customSub=null){
+  clearSuggestion(false);
+  $("answer").value = "";
+  $("answer").disabled = false;
+  syncInputState();
+  $("submitBtn").disabled = false;
+  $("submitBtn").textContent = "IGNITE ↗";
+
+  $("inputWrap").classList.remove("locked", "hit");
+  $("inputWrap").classList.add("miss");
+  $("inputIcon").textContent = "✕";
+  triggerShake();
+
+  $("feedback").className = "feedback bad";
+  $("feedback").innerHTML = `
+    <div class="feedback-main">
+      <div>
+        <div class="result">${customTitle || "Brand not recognized."}</div>
+        <small>${customSub || `“${escapeHtml(badText)}” didn’t match any brand in this category — try another!`}</small>
+      </div>
+      <div class="points zero">+0 MI</div>
+    </div>`;
+
+  setTimeout(()=>{
+    if(!locked){
+      $("inputWrap").classList.remove("miss");
+      $("inputIcon").textContent = "⌕";
+    }
+  }, 900);
+
+  $("answer").focus();
+}
+
+function handleTimeout(){
+  if(locked) return;
+  clearSuggestion(false);
+  locked = true;
+  lockedAt = Date.now();
+  clearInterval(timer);
+  $("answer").value = "";
+  syncInputState();
+  $("answer").disabled = true;
+  $("submitBtn").disabled = true;
+  $("submitBtn").textContent = "BURN ENDED";
+
+  $("inputWrap").classList.remove("urgent", "shake", "suggest");
+  $("inputWrap").classList.add("locked", "miss");
+  $("inputIcon").textContent = "!";
+
+  const c = rounds[idx];
+  const topInfo = getTopPercent(0, 35, 22);
+  answers.push({
+    question: c.q,
+    answer: "No burn (aborted / timed out)",
+    brand: null,
+    points: 0,
+    miles: 0,
+    tierName: null,
+    tierIcon: "⬛",
+    topPct: topInfo.label
+  });
+
+  $("feedback").className = "feedback bad";
+  $("feedback").innerHTML = `
+    <div class="feedback-main">
+      <div><div class="result">Burn window closed!</div><small>Zero thrust this stage. Click below when you’re ready to continue.</small></div>
+      <div class="points zero">+0 MI</div>
+    </div>
+  `;
+
+  showContinueButton();
+}
+
+function confirmValidBrand(found){
+  if(locked) return;
+  clearSuggestion(false);
+  locked = true;
+  lockedAt = Date.now();
+  clearInterval(timer);
+
+  const pts = snapToCosmicTier(found.points);
+  const tier = getTierInfo(pts);
+
+  $("answer").value = found.name;
+  syncInputState();
+  $("answer").disabled = true;
+  $("submitBtn").disabled = true;
+
+  const c = rounds[idx];
+  const milesGained = pts * MILES_PER_POINT;
+  totalMiles += milesGained;
+  updateTelemetry(true);
+
+  $("inputWrap").classList.remove("urgent", "shake", "miss", "suggest");
+  $("inputWrap").classList.add("locked", "hit");
+  $("inputIcon").textContent = tier.icon;
+
+  const topInfo = getTopPercent(pts, 35, 22);
+  answers.push({
+    question: c.q,
+    answer: found.name,
+    brand: found.name,
+    points: pts,
+    miles: milesGained,
+    tierName: tier.name,
+    tierIcon: tier.icon,
+    topPct: topInfo.label
+  });
+
+  const sourceBadge = found.source !== "local" ? " · Verified via brand registry" : "";
+  $("feedback").className = `feedback good ${pts === 100 ? "singularity-hit" : ""}`;
+  $("feedback").innerHTML = `
+    <div class="feedback-main">
+      <div>
+        <div class="result">${tier.icon} ${escapeHtml(found.name)} <span class="tier-tag t-${pts}">${escapeHtml(tier.name)}</span></div>
+        <small>${escapeHtml(tier.desc)}${sourceBadge}</small>
+      </div>
+      <div class="points">+${formatMiles(milesGained)} MI<small>+${pts} PTS</small></div>
+    </div>
+  `;
+
+  $("submitBtn").textContent = "THRUST LOCKED";
+  showContinueButton();
+}
+
+async function submitAnswer(raw=""){
+  if(locked || checking) return;
+
+  if(pendingSuggestion){
+    confirmValidBrand(pendingSuggestion);
+    return;
+  }
+
+  const answer = raw.trim();
+  if(!answer){
+    triggerShake();
+    toast("Enter a brand to ignite thrusters.");
+    $("answer").focus();
+    return;
+  }
+
+  const c = rounds[idx];
+  const token = roundToken;
+
+  let found = lookupLocal(c, answer);
+
+  if(!found || !found.exact){
+    checking = true;
+    $("answer").disabled = true;
+    $("submitBtn").disabled = true;
+    $("submitBtn").textContent = "SCANNING...";
+    $("inputIcon").textContent = "◌";
+
+    const webMatch = await verifyBrandOnline(c, answer);
+    checking = false;
+
+    if(locked || token !== roundToken) return;
+
+    $("answer").disabled = false;
+    $("submitBtn").disabled = false;
+    $("submitBtn").textContent = "IGNITE ↗";
+    $("inputIcon").textContent = "⌕";
+
+    if(webMatch?.wrongCategory){
+      rejectAnswer(
+        answer,
+        `Wrong category for ${webMatch.name}.`,
+        `<b>${escapeHtml(webMatch.name)}</b> is a real brand, but it doesn’t fit “${escapeHtml(c.q)}”.`
+      );
+      return;
+    }
+
+    if(webMatch && webMatch.exact){
+      found = webMatch;
+    } else if(!found && webMatch){
+      found = webMatch;
+    }
+  }
+
+  if(!found){
+    rejectAnswer(answer);
+    return;
+  }
+
+  if(!found.exact){
+    showSuggestion(found);
+    return;
+  }
+
+  confirmValidBrand(found);
+}
+
+function buildShareSummary(overallTopLabel){
+  const dateLabel = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const modeLabel = mode === "daily" ? `Daily Mission — ${dateLabel}` : `Free Flight — ${dateLabel}`;
+  const emojiRow = answers.map(a => a.tierIcon || "⬛").join(" ");
+  return `BALLISTIC 🚀 ${modeLabel}\n${formatMiles(totalMiles)} MILES · TOP ${overallTopLabel}%\n${emojiRow}`;
+}
+
+async function copyMissionResult(){
+  if(!lastShareText) return;
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(lastShareText);
+    } else {
+      throw new Error("Fallback copy");
+    }
+  }catch{
+    const ta = document.createElement("textarea");
+    ta.value = lastShareText;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+  }
+  toast("Mission telemetry copied to clipboard!");
+  const btn = $("copyBtn");
+  const prev = btn.textContent;
+  btn.textContent = "COPIED TO CLIPBOARD ✓";
+  setTimeout(()=>{ btn.textContent = prev; }, 2200);
+}
+
+function finishGame(){
+  clearInterval(timer);
+  show("results");
+  $("finalScore").innerHTML = `${formatMiles(totalMiles)} <span>MILES FROM EARTH</span>`;
+
+  let title =
+    totalMiles >= 450000 ? "Certified Interstellar Ball Knowledge." :
+    totalMiles >= 300000 ? "Past the Moon. Elite Ball Knowledge." :
+    totalMiles >= 238900 ? "Lunar Flyby. Deep Bag Confirmed." :
+    totalMiles >= 120000 ? "High Orbit. Solid Ball Knowledge." :
+                           "Still in Low Orbit. Dig Deeper.";
+
+  let medal =
+    totalMiles >= 400000 ? "🪐" :
+    totalMiles >= 238900 ? "🌕" :
+    totalMiles >= 120000 ? "🛰️" : "🚀";
+
+  $("resultTitle").textContent = title;
+  $("medal").textContent = medal;
+  $("resultSubtitle").textContent = `Final sector: ${getCosmicZone(totalMiles).replace(/^[^\s]+\s/, "")}`;
+
+  // End-of-Round Normal Distribution Bell Curve
+  $("finalCurveBox").innerHTML = buildBellCurveHTML({
+    value: totalMiles,
+    mean: 220000,
+    std: 105000,
+    context: "All 7-stage rounds",
+    uid: "final_round"
+  });
+
+  const successfulBurns = answers.filter(a => a.miles > 0);
+  const bestBurn = successfulBurns.reduce((best, cur) => (!best || cur.miles > best.miles) ? cur : best, null);
+  const avgMiles = Math.round(totalMiles / TOTAL_ROUNDS);
+  const overallTop = getTopPercent(totalMiles, 220000, 105000);
+
+  // Build spoiler-free share strip & clipboard payload
+  lastShareText = buildShareSummary(overallTop.label);
+  $("shareStrip").textContent = answers.map(a => a.tierIcon || "⬛").join(" ");
+
+  const storyText = bestBurn
+    ? `Your ship blasted out of Earth’s atmosphere and logged <b>${formatMiles(totalMiles)} miles</b> across ${TOTAL_ROUNDS} stages, placing you in the <b>Top ${overallTop.label}%</b> of all pilots. Your strongest ignition was <b>${escapeHtml(bestBurn.brand)}</b> (${bestBurn.tierIcon} <b>${escapeHtml(bestBurn.tierName)}</b>), propelling you <b>+${formatMiles(bestBurn.miles)} miles</b>.`
+    : `Your ship stayed on the launchpad with <b>0 miles</b> logged across ${TOTAL_ROUNDS} stages. Hit Free Flight Mode to warm up your thrusters and break out of Earth’s atmosphere.`;
+
+  $("recapStory").innerHTML = storyText;
+
+  $("recapStats").innerHTML = `
+    <div class="rstat">
+      <small>Best Thruster Boost</small>
+      <strong>${bestBurn ? "+" + formatMiles(bestBurn.miles) + " MI" : "0 MI"}</strong>
+      <span>${bestBurn ? bestBurn.tierIcon + " " + escapeHtml(bestBurn.brand) + " (" + escapeHtml(bestBurn.tierName) + ")" : "No valid burns"}</span>
+    </div>
+    <div class="rstat">
+      <small>Avg. Burn / Stage</small>
+      <strong>${formatMiles(avgMiles)} MI</strong>
+      <span>Across ${TOTAL_ROUNDS} stages</span>
+    </div>
+    <div class="rstat">
+      <small>Round Percentile</small>
+      <strong>TOP ${overallTop.label}%</strong>
+      <span>Beat ${overallTop.beaten}% of launches</span>
+    </div>
+  `;
+
+  const milestones = [
+    {icon:"🌍", name:"Atmosphere Exit", req:10000, label:"10K mi"},
+    {icon:"☄️", name:"Meteorite Field", req:120000, label:"120K mi"},
+    {icon:"🌕", name:"Passed the Moon", req:238900, label:"238.9K mi"},
+    {icon:"🪐", name:"Deep Space", req:450000, label:"450K mi"}
+  ];
+
+  $("recapMilestones").innerHTML = milestones.map(m => {
+    const ok = totalMiles >= m.req;
+    return `<div class="ms ${ok ? "reached" : ""}"><b>${m.icon}</b>${m.name}<br><small>${ok ? "CLEARED" : m.label}</small></div>`;
+  }).join("");
+
+  $("breakdown").innerHTML = answers.map((a, i)=>`
+    <div class="answeritem">
+      <div>
+        <b>Stage ${i+1}: ${escapeHtml(a.question)}</b>
+        <small>${escapeHtml(a.answer)}${a.brand ? ` · ${a.tierIcon} ${escapeHtml(a.tierName)} (${a.points} pts)` : ""}</small>
+      </div>
+      <strong>+${formatMiles(a.miles)} MI</strong>
+    </div>`).join("");
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+$("startBtn").onclick = () => startGame("daily");
+$("practiceBtn").onclick = () => startGame("practice");
+$("answerForm").addEventListener("submit", e => { e.preventDefault(); submitAnswer($("answer").value); });
+$("answer").addEventListener("input", () => {
+  if(pendingSuggestion) clearSuggestion(true);
+  syncInputState();
+});
+$("clearBtn").onclick = () => {
+  clearSuggestion(true);
+  $("answer").value = "";
+  syncInputState();
+  $("answer").focus();
+};
+$("continueBtn").onclick = advanceStage;
+$("skipBtn").onclick = () => { if(!checking && !locked) handleTimeout(); };
+$("copyBtn").onclick = copyMissionResult;
+$("againBtn").onclick = () => startGame(mode);
+$("homeBtn").onclick = () => { clearInterval(timer); show("home"); };
+$("howBtn").onclick = () => toast("Space Dust 10 · Satellite 25 · Nebula 50 · Supernova 75 · Singularity 100");
+
+document.addEventListener("keydown", e => {
+  if(!$("game").classList.contains("active") || checking) return;
+  if(locked){
+    if(e.key === "Enter" && Date.now() - lockedAt > 350){
+      e.preventDefault();
+      advanceStage();
+    }
+    return;
+  }
+  if(e.key === "Escape" && ($("answer").value || pendingSuggestion)){
+    e.preventDefault();
+    clearSuggestion(true);
+    $("answer").value = "";
+    syncInputState();
+    $("answer").focus();
+    return;
+  }
+  if(document.activeElement !== $("answer") && e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey){
+    $("answer").focus();
+  }
+});
+</script>
+</body>
+</html>

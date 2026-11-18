@@ -875,7 +875,7 @@ body.animating.timeout-burn .flight-callout { color:#cbd5e1; text-shadow:0 0 16p
   22% { transform:translate(-50%,-50%) scale(1.65); }
   48% { transform:translate(-50%,-50%) scale(1.9); }
   76% { transform:translate(-50%,-50%) scale(1.35); }
-  100% { transform:translate(-50%,-50%) scale(1.12); }
+  100% { transform:translate(-50%,-50%) scale(1.28); }
 }
 body.animating .space-stage:before { transform-origin:50% 48%; animation:spaceCameraMove var(--burn-duration,3s) cubic-bezier(.18,.72,.24,1) both; }
 body.animating .space-stage:after { animation:gridRush var(--burn-duration,3s) ease-in both; }
@@ -2224,7 +2224,7 @@ function animateRocketFailure(){
 
 function animateRocketBurn(found, tier, milesGained){
   // Each rarity gets a longer flight; even the lowest tier lasts 3 seconds.
-  const durations = {10:3000, 25:4000, 50:5200, 75:6600, 100:8000};
+  const durations = {10:4500, 25:6000, 50:7500, 75:9500, 100:12000};
   const duration = durations[tier.points] || 3000;
   const rocket = $("rocketMarker");
   const callout = $("flightCallout");

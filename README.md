@@ -15,4 +15,4 @@ node scripts/validate-challenges.mjs
 
 Set `BLASTOFF_START_DATE=YYYY-MM-DD` to choose the first day of a new 90-day schedule. The generator keeps adjacent daily sets varied and gives each answer a fixed rarity tier before play.
 
-**Current implementation note:** the prepared file is loaded by the browser, so future answer banks are visible in the client bundle. A Cloudflare Worker/KV layer is the next step if you want to keep future answer banks server-side and validate submissions remotely.
+**Current implementation note:** the frontend now supports the Worker API when `config.js` contains its workers.dev URL. Leave that setting blank to use the checked-in static fallback. Until the Worker is deployed and configured, the browser still loads the prepared answer banks.

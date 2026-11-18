@@ -833,6 +833,35 @@ body.in-game .footer{display:none}
   .milestones{grid-template-columns:repeat(2,1fr)}
   .feedback-main{flex-direction:column;align-items:flex-start}
 }
+
+/* CLEAN DAILY GAMEPLAY + RARITY-BASED ROCKET FLIGHT */
+body.in-game .top, body.in-game .footer, body.in-game .game-hud,
+body.in-game .zonebadge, body.in-game .feedback, body.in-game .nextbar,
+body.in-game .bottomrow, body.in-game #qSub { display:none !important; }
+body.in-game .shell { width:min(720px,calc(100% - 34px)); }
+body.in-game #game.active { justify-content:center; gap:0; }
+body.in-game .top-console { margin:auto auto 22px; text-align:center; }
+body.in-game .question { padding:22px 12px; background:transparent; border:0; box-shadow:none; backdrop-filter:none; }
+body.in-game .q-head { justify-content:center; }
+body.in-game .q-head h2 { font-size:clamp(25px,5vw,42px); }
+body.in-game .middle-sky-spacer { min-height:clamp(120px,25vh,250px); }
+body.in-game .bottom-console { margin:0 auto auto; max-width:560px; }
+body.in-game .timercluster { margin:0 0 16px; }
+body.in-game .timerrow { font-size:11px; letter-spacing:1.8px; }
+body.in-game .answerrow { gap:10px; }
+body.in-game .answerrow .primary { min-width:132px; }
+.ship-wrap { transition:left var(--burn-duration,.95s) cubic-bezier(.16,1,.3,1); }
+.ship-wrap.flight-burn { animation:shipBurn .42s ease-in-out infinite alternate; }
+.ship-wrap.flight-burn .flame { transform:scaleX(2.4) scaleY(1.5); }
+@keyframes shipBurn { from { filter:drop-shadow(0 0 18px rgba(56,189,248,.75)); } to { filter:drop-shadow(0 0 44px rgba(251,191,36,1)); } }
+.flight-callout { position:fixed; z-index:60; left:50%; top:50%; transform:translate(-50%,-50%); width:min(90vw,600px); text-align:center; color:#f8fafc; font-weight:900; letter-spacing:1.2px; font-size:clamp(22px,4vw,38px); text-shadow:0 0 28px rgba(56,189,248,.8),0 3px 20px #000; opacity:0; pointer-events:none; }
+.flight-callout small { display:block; margin-top:12px; color:#bae6fd; font-size:clamp(14px,2vw,20px); letter-spacing:2px; }
+body.animating .shell { visibility:hidden; }
+body.animating .space-stage { z-index:50; }
+body.animating .flight-callout { opacity:1; animation:calloutIn .35s ease both; }
+@keyframes calloutIn { from { opacity:0; transform:translate(-50%,-42%); } to { opacity:1; transform:translate(-50%,-50%); } }
+@media (prefers-reduced-motion:reduce) { .ship-wrap.flight-burn { animation:none; } .flight-callout { animation:none !important; } }
+
 </style>
 </head>
 <body>
@@ -966,6 +995,7 @@ body.in-game .footer{display:none}
       </svg>
     </div>
   </div>
+  <div class="flight-callout" id="flightCallout" aria-live="polite"></div>
 </div>
 
 <!-- FOREGROUND FLOATING UI -->
@@ -998,8 +1028,7 @@ body.in-game .footer{display:none}
         <span>✓ Today’s official flight is locked in: <strong id="dailyLockedScore">0 MI</strong></span>
         <span>New prompts at midnight</span>
       </div>
-      <div class="subactions"><button class="btn secondary" id="practiceBtn">FREE FLIGHT MODE</button><button class="btn secondary" id="howBtn">FLIGHT BRIEFING</button></div>
-      <div class="rules"><span>🛰️</span><span><b>1 point = 1,000 miles.</b> Every valid brand falls into one of 5 cosmic rarity tiers—from <b>Space Dust (10)</b> up to <b>Singularity (100)</b>. Daily Mission updates every 24 hours; Free Flight Mode is unlimited.</span></div>
+      <div class="rules"><span>🚀</span><span><b>1 point = 1,000 miles.</b> Rarer brands send your rocket farther. Seven new questions every day.</span></div>
     </section>
   </main>
 
@@ -1014,12 +1043,11 @@ body.in-game .footer{display:none}
         <div class="zonebadge" id="zoneBadge">🌍 Launchpad · Earth Atmosphere</div>
       </div>
 
-      <section class="card question">
+      <section class="question">
         <div class="q-head">
           <span class="qicon" id="qIcon">👟</span>
           <h2 id="question">Name a sneaker brand.</h2>
         </div>
-        <p id="qSub">Dig into your bag. Rarer brands unlock higher cosmic tiers.</p>
       </section>
     </div>
 
@@ -1065,11 +1093,6 @@ body.in-game .footer{display:none}
         </div>
       </div>
 
-      <div class="nextbar" id="nextBar">
-        <button type="button" class="btn primary" id="continueBtn">CONTINUE YOUR JOURNEY →</button>
-      </div>
-
-      <div class="bottomrow"><div>MULTI-REGISTRY BRAND VERIFICATION · CLOSE TYPOS PROMPT CONFIRMATION</div><button class="skip" id="skipBtn">Abort stage →</button></div>
     </div>
   </main>
 
@@ -1840,7 +1863,7 @@ function showContinueButton(){
 }
 
 function advanceStage(){
-  if(!locked) return;
+  if(!locked || document.body.classList.contains("animating")) return;
   idx++;
   if(idx >= TOTAL_ROUNDS) finishGame();
   else renderRound();
@@ -1949,15 +1972,8 @@ function renderRound(){
   $("submitBtn").classList.remove("confirming");
   $("submitBtn").textContent = "IGNITE ↗";
 
-  $("nextBar").classList.remove("show");
-  $("skipBtn").style.visibility = "visible";
+  $("submitBtn").onclick = null;
 
-  $("feedback").className = "feedback";
-  $("feedback").innerHTML = `
-    <div class="feedback-main">
-      <div><div class="result">Thrusters armed...</div><small>Wrong guesses clear automatically so you can retry before the clock hits zero.</small></div>
-      <div class="points">—</div>
-    </div>`;
   $("answer").focus();
 
   updateTimer();
@@ -2324,7 +2340,26 @@ function handleTimeout(){
     </div>
   `;
 
-  showContinueButton();
+  $("submitBtn").textContent = "NEXT QUESTION →";
+  $("submitBtn").disabled = false;
+  $("submitBtn").onclick = advanceStage;
+}
+
+function animateRocketBurn(found, tier, milesGained){
+  const durations = {10:850, 25:1250, 50:1750, 75:2350, 100:3100};
+  const duration = durations[tier.points] || 1200;
+  const rocket = $("rocketMarker");
+  const callout = $("flightCallout");
+  rocket.style.setProperty("--burn-duration", duration + "ms");
+  rocket.classList.add("flight-burn");
+  callout.innerHTML = `${escapeHtml(found.name)}<small>${tier.icon} ${escapeHtml(tier.name)} · +${formatMiles(milesGained)} MILES</small>`;
+  document.body.classList.add("animating");
+  updateTelemetry(true);
+  window.setTimeout(() => {
+    rocket.classList.remove("flight-burn");
+    document.body.classList.remove("animating");
+    callout.innerHTML = "";
+  }, duration);
 }
 
 function confirmValidBrand(found){
@@ -2345,7 +2380,7 @@ function confirmValidBrand(found){
   const c = rounds[idx];
   const milesGained = pts * MILES_PER_POINT;
   totalMiles += milesGained;
-  updateTelemetry(true);
+  animateRocketBurn(found, tier, milesGained);
 
   $("inputWrap").classList.remove("urgent", "shake", "miss", "suggest");
   $("inputWrap").classList.add("locked", "hit");
@@ -2375,8 +2410,9 @@ function confirmValidBrand(found){
     </div>
   `;
 
-  $("submitBtn").textContent = "THRUST LOCKED";
-  showContinueButton();
+  $("submitBtn").textContent = "NEXT QUESTION →";
+  $("submitBtn").disabled = false;
+  $("submitBtn").onclick = advanceStage;
 }
 
 async function submitAnswer(raw=""){
@@ -2483,7 +2519,7 @@ function renderResultsScreen(isLockedRecap=false){
   $("finalScore").innerHTML = `${formatMiles(totalMiles)} <span>MILES FROM EARTH</span>`;
   $("resultEyebrow").textContent = mode === "daily"
     ? (isLockedRecap ? "TODAY'S OFFICIAL DAILY FLIGHT · LOCKED IN" : "DAILY MISSION COMPLETE")
-    : "FREE FLIGHT COMPLETE";
+    : "DAILY FLIGHT COMPLETE";
 
   let title =
     totalMiles >= 450000 ? "Certified Interstellar Ball Knowledge." :
@@ -2519,7 +2555,7 @@ function renderResultsScreen(isLockedRecap=false){
 
   const storyText = bestBurn
     ? `Your ship blasted out of Earth’s atmosphere and logged <b>${formatMiles(totalMiles)} miles</b> across ${TOTAL_ROUNDS} stages, placing you in the <b>Top ${overallTop.label}%</b> of all pilots. Your strongest ignition was <b>${escapeHtml(bestBurn.brand)}</b> (${bestBurn.tierIcon} <b>${escapeHtml(bestBurn.tierName)}</b>), propelling you <b>+${formatMiles(bestBurn.miles)} miles</b>.`
-    : `Your ship stayed on the launchpad with <b>0 miles</b> logged across ${TOTAL_ROUNDS} stages. Hit Free Flight Mode to warm up your thrusters and break out of Earth’s atmosphere.`;
+    : `Your ship stayed on the launchpad with <b>0 miles</b> logged across ${TOTAL_ROUNDS} stages. Come back tomorrow for a new Daily Challenge.`;
 
   $("recapStory").innerHTML = storyText;
 
@@ -2562,7 +2598,7 @@ function renderResultsScreen(isLockedRecap=false){
       <strong>+${formatMiles(a.miles)} MI</strong>
     </div>`).join("");
 
-  $("againBtn").textContent = mode === "daily" ? "FREE FLIGHT MODE 🚀" : "LAUNCH AGAIN ↻";
+  $("againBtn").textContent = "BACK TO DAILY CHALLENGE ↻";
 }
 
 function finishGame(){
@@ -2582,7 +2618,6 @@ function escapeHtml(s){
 }
 
 $("startBtn").onclick = () => startGame("daily");
-$("practiceBtn").onclick = () => startGame("practice");
 $("answerForm").addEventListener("submit", e => { e.preventDefault(); submitAnswer($("answer").value); });
 $("answer").addEventListener("input", () => {
   if(pendingSuggestion) clearSuggestion(true);
@@ -2594,17 +2629,14 @@ $("clearBtn").onclick = () => {
   syncInputState();
   $("answer").focus();
 };
-$("continueBtn").onclick = advanceStage;
-$("skipBtn").onclick = () => { if(!checking && !locked) handleTimeout(); };
 $("copyBtn").onclick = copyMissionResult;
-$("againBtn").onclick = () => startGame("practice");
+$("againBtn").onclick = () => { show("home"); };
 $("homeBtn").onclick = () => { clearInterval(timer); show("home"); };
-$("howBtn").onclick = () => toast("Space Dust 10 · Satellite 25 · Nebula 50 · Supernova 75 · Singularity 100");
 
 document.addEventListener("keydown", e => {
   if(!$("game").classList.contains("active") || checking) return;
   if(locked){
-    if(e.key === "Enter" && Date.now() - lockedAt > 350){
+    if(e.key === "Enter" && Date.now() - lockedAt > 350 && !document.body.classList.contains("animating")){
       e.preventDefault();
       advanceStage();
     }

@@ -83,13 +83,37 @@ for (const category of categories) {
     icon:category.icon || "🚀", answers
   });
 }
-if (usableCategories.length < 10) {
-  throw new Error("Only " + usableCategories.length + " curated categories passed validation.");
+if (usableCategories.length < 14) {
+  throw new Error("Only " + usableCategories.length + " curated categories passed validation; refusing to generate a repetitive daily schedule.");
+}
+
+// Remove aliases that point to more than one canonical answer inside a category.
+// Ambiguous aliases must never award points to whichever entry happens to be first.
+for (const category of usableCategories) {
+  const owners = new Map();
+  for (const answer of category.answers) {
+    for (const alias of [answer.name, ...(answer.aliases || [])]) {
+      const key = normalize(alias);
+      if (!key) continue;
+      if (!owners.has(key)) owners.set(key, new Set());
+      owners.get(key).add(normalize(answer.name));
+    }
+  }
+  for (const answer of category.answers) {
+    answer.aliases = (answer.aliases || []).filter(alias => {
+      const key = normalize(alias);
+      return key === normalize(answer.name) || (owners.get(key)?.size === 1);
+    });
+  }
 }
 
 const startDate = process.env.BLASTOFF_START_DATE || new Date().toISOString().slice(0,10);
+const parsedStartDate = new Date(startDate + "T00:00:00Z");
 if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
-    Number.isNaN(Date.parse(startDate + "T00:00:00Z"))) throw new Error("Invalid BLASTOFF_START_DATE.");
+    Number.isNaN(parsedStartDate.getTime()) ||
+    parsedStartDate.toISOString().slice(0,10) !== startDate) {
+  throw new Error("Invalid BLASTOFF_START_DATE.");
+}
 let seed = [...startDate].reduce((a,c)=>Math.imul(a ^ c.charCodeAt(0),16777619)>>>0,2166136261);
 function random(){ seed=(Math.imul(seed,1664525)+1013904223)>>>0; return seed/4294967296; }
 function shuffled(items){ const out=[...items]; for(let i=out.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[out[i],out[j]]=[out[j],out[i]];} return out; }

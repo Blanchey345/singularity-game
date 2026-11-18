@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>BALLISTIC — Elite Ball Knowledge in Deep Space</title>
+<title>BLASTOFF — Brand Trivia in Deep Space</title>
 <style>
 :root{
   --bg:#04060f;
@@ -1037,7 +1037,7 @@ body.animating.rarity-100 .flight-callout{color:#fff2b2;text-shadow:0 0 18px #fb
 
 <!-- FOREGROUND FLOATING UI -->
 <div class="shell">
-  <header class="top"><div class="logo">BALL<span>ISTIC</span></div><div class="pill" id="poolBadge">✦ DEEP SPACE BALL KNOWLEDGE</div></header>
+  <header class="top"><div class="logo">BLAST<span>OFF</span></div><div class="pill" id="poolBadge">✦ BRAND KNOWLEDGE IN DEEP SPACE</div></header>
 
   <main id="home" class="screen active">
     <section class="hero">
@@ -1158,7 +1158,7 @@ body.animating.rarity-100 .flight-callout{color:#fff2b2;text-shadow:0 0 18px #fb
       <button class="btn secondary" id="homeBtn">MISSION CONTROL</button>
     </div>
   </main>
-  <div class="footer">BALLISTIC · ELITE BALL KNOWLEDGE IN DEEP SPACE</div>
+  <div class="footer">BLASTOFF · BRAND TRIVIA IN DEEP SPACE</div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -2511,7 +2511,7 @@ function buildShareSummary(overallTopLabel){
   const dateLabel = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const modeLabel = mode === "daily" ? `Daily Mission — ${dateLabel}` : `Free Flight — ${dateLabel}`;
   const emojiRow = answers.map(a => a.tierIcon || "⬛").join(" ");
-  return `BALLISTIC 🚀 ${modeLabel}\n${formatMiles(totalMiles)} MILES · TOP ${overallTopLabel}%\n${emojiRow}`;
+  return `BLASTOFF 🚀 ${modeLabel}\n${formatMiles(totalMiles)} MILES · TOP ${overallTopLabel}%\n${emojiRow}`;
 }
 
 async function copyMissionResult(){

@@ -2241,7 +2241,7 @@ function confirmValidBrand(found){
     topPct: topInfo.label
   });
 
-  const sourceBadge = found.source !== "local" ? " · Verified via brand registry" : "";
+  const sourceBadge = found.source === "prepared" ? " · Prepared answer bank" : found.source !== "local" ? " · Verified via brand registry" : "";
   $("feedback").className = `feedback good ${pts === 100 ? "singularity-hit" : ""}`;
   $("feedback").innerHTML = `
     <div class="feedback-main">
@@ -2275,8 +2275,6 @@ async function submitAnswer(raw=""){
   }
 
   const c = rounds[idx];
-  const token = roundToken;
-
   let found = lookupLocal(c, answer);
   if(!found){
     rejectAnswer(answer);

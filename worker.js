@@ -21,10 +21,10 @@ export default {
    if(request.method==="POST"&&url.pathname==="/api/answer"){
     const body=await request.json(),q=data.questions?.[body.questionId];
     if(!q||!ids.includes(body.questionId))return json({error:"Question is not part of today's challenge."},400,origin);
-    const input=normalize(body.answer);if(input.length<2)return json({accepted:false},200,origin);
+    const shortcuts={mccdonalds:"mcdonalds",mcdonald:"mcdonalds"};const input=shortcuts[normalize(body.answer)]||normalize(body.answer);if(input.length<2)return json({accepted:false},200,origin);
     let suggestion=null,best=Infinity,tied=false;
     for(const answer of q.answers){
-     const names=[answer.name,...(answer.aliases||[])].map(normalize).filter(Boolean);
+     const names=[answer.name,...(answer.aliases||[])].map(normalize).map(n=>shortcuts[n]||n).filter(Boolean);
      if(names.includes(input))return json({accepted:true,name:answer.name,points:answer.points,tier:tier(answer.points)},200,origin);
      let dist=Infinity;for(const name of names)dist=Math.min(dist,distance(input,name));
      const max=Math.max(input.length,normalize(answer.name).length)>=11?3:Math.max(input.length,normalize(answer.name).length)>=7?2:1;

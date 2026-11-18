@@ -6,9 +6,9 @@ import urllib.parse
 import urllib.request
 
 SPARQL_ENDPOINT = "https://query.wikidata.org/sparql"
-USER_AGENT = "SingularityBrandGameBuilder/1.0 (https://github.com/local-dev)"
+USER_AGENT = "BallisticBrandGameBuilder/2.0 (https://github.com/Blanchey345/singularity-game)"
 
-# Each category maps to a clean Wikidata SPARQL pattern + minimum Wikipedia sitelinks
+# Each category maps to a Wikidata SPARQL pattern + minimum Wikipedia sitelinks
 # Higher min_sitelinks = stricter filter for globally recognizable consumer brands
 CATEGORIES = {
     "cosmetics": {
@@ -90,6 +90,95 @@ CATEGORIES = {
         "where": """
             { ?item wdt:P31 wd:Q131734 . } UNION
             { ?item wdt:P31 wd:Q147538 . }
+        """,
+    },
+    "candy_snacks": {
+        "prompt": "Name a candy, chocolate, or snack brand",
+        "min_sitelinks": 12,
+        "limit": 250,
+        "where": """
+            { ?item wdt:P452 wd:Q185583 . } UNION
+            { ?item wdt:P1056 wd:Q185583 . } UNION
+            { ?item wdt:P1056 wd:Q132311 . }
+        """,
+    },
+    "watchmakers": {
+        "prompt": "Name a watchmaker or luxury timepiece brand",
+        "min_sitelinks": 12,
+        "limit": 200,
+        "where": """
+            { ?item wdt:P31 wd:Q1762621 . } UNION
+            { ?item wdt:P1056 wd:Q178790 . }
+        """,
+    },
+    "hotels_resorts": {
+        "prompt": "Name a hotel or resort chain",
+        "min_sitelinks": 16,
+        "limit": 200,
+        "where": """
+            { ?item wdt:P31 wd:Q1616075 . }
+        """,
+    },
+    "streaming_media": {
+        "prompt": "Name a streaming platform or TV network",
+        "min_sitelinks": 22,
+        "limit": 250,
+        "where": """
+            { ?item wdt:P31 wd:Q54820071 . } UNION
+            { ?item wdt:P31 wd:Q141683 . }
+        """,
+    },
+    "music_gear": {
+        "prompt": "Name a musical instrument or audio gear brand",
+        "min_sitelinks": 14,
+        "limit": 200,
+        "where": """
+            { ?item wdt:P31 wd:Q1320047 . } UNION
+            { ?item wdt:P1056 wd:Q34379 . }
+        """,
+    },
+    "toy_brands": {
+        "prompt": "Name a toy or board game brand",
+        "min_sitelinks": 14,
+        "limit": 200,
+        "where": """
+            { ?item wdt:P1056 wd:Q11422 . } UNION
+            { ?item wdt:P452 wd:Q188460 . }
+        """,
+    },
+    "banks_fintech": {
+        "prompt": "Name a bank or financial services brand",
+        "min_sitelinks": 28,
+        "limit": 250,
+        "where": """
+            { ?item wdt:P31 wd:Q22687 . } UNION
+            { ?item wdt:P31 wd:Q134161 . }
+        """,
+    },
+    "sports_teams": {
+        "prompt": "Name a professional sports franchise or club",
+        "min_sitelinks": 48,
+        "limit": 300,
+        "where": """
+            { ?item wdt:P31 wd:Q476028 . } UNION
+            { ?item wdt:P31 wd:Q13393265 . } UNION
+            { ?item wdt:P31 wd:Q13027888 . }
+        """,
+    },
+    "tire_auto_parts": {
+        "prompt": "Name a tire or automotive parts brand",
+        "min_sitelinks": 12,
+        "limit": 180,
+        "where": """
+            { ?item wdt:P1056 wd:Q169545 . }
+        """,
+    },
+    "book_publishers": {
+        "prompt": "Name a book or comic publisher",
+        "min_sitelinks": 28,
+        "limit": 220,
+        "where": """
+            { ?item wdt:P31 wd:Q2085381 . }
         """,
     },
 }
@@ -205,7 +294,7 @@ def build_daily_questions(brands_by_id: dict) -> list[dict]:
         valid_ids = [
             b["id"] for b in brands_by_id.values() if cat_key in b["categories"]
         ]
-        if len(valid_ids) >= 15:
+        if len(valid_ids) >= 12:
             questions.append(
                 {
                     "id": f"cat_{cat_key}",
@@ -216,7 +305,7 @@ def build_daily_questions(brands_by_id: dict) -> list[dict]:
                 }
             )
 
-    # 2. Country + Category Combo Questions (Bonus Challenge Pool)
+    # 2. Country + Category Combo Questions
     country_filters = [
         ("United States", "American"),
         ("Japan", "Japanese"),
@@ -224,6 +313,10 @@ def build_daily_questions(brands_by_id: dict) -> list[dict]:
         ("Germany", "German"),
         ("United Kingdom", "British"),
         ("South Korea", "South Korean"),
+        ("Italy", "Italian"),
+        ("Switzerland", "Swiss"),
+        ("Canada", "Canadian"),
+        ("Sweden", "Swedish"),
     ]
     for country_name, demonym in country_filters:
         for cat_key, cfg in CATEGORIES.items():
@@ -234,10 +327,11 @@ def build_daily_questions(brands_by_id: dict) -> list[dict]:
             ]
             if len(valid_ids) >= 8:
                 clean_topic = cfg["prompt"].replace("Name a ", "").replace("Name an ", "")
+                article = "an" if demonym[0].lower() in "aeiou" else "a"
                 questions.append(
                     {
                         "id": f"combo_{country_name.lower().replace(' ', '_')}_{cat_key}",
-                        "prompt": f"Name a {demonym} {clean_topic}",
+                        "prompt": f"Name {article} {demonym} {clean_topic}",
                         "category": cat_key,
                         "difficulty": "hard",
                         "validIds": valid_ids,
@@ -282,7 +376,7 @@ def main():
         except Exception as exc:
             print(f"  [!] Error fetching {cat_key}: {exc}")
 
-        time.sleep(1.2)  # Polite rate limit for Wikidata WDQS
+        time.sleep(1.2)
 
     daily_questions = build_daily_questions(brands_by_id)
 
@@ -302,7 +396,6 @@ def main():
     with open("daily_questions.json", "w", encoding="utf-8") as f:
         json.dump(daily_questions, f, ensure_ascii=False, indent=2)
 
-    # Also export a JS bundle for zero-CORS local file:// testing
     with open("brands_data.js", "w", encoding="utf-8") as f:
         f.write("window.SINGULARITY_DB = ")
         json.dump(db_payload, f, ensure_ascii=False)

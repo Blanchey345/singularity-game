@@ -367,12 +367,32 @@ body.in-game .shell{
 .btn:active:not(:disabled){transform:translateY(0)}
 .btn:disabled{opacity:.55;cursor:not-allowed}
 .primary{width:100%;background:linear-gradient(100deg,var(--cyan),#818cf8);color:#050814;box-shadow:0 9px 28px #38bdf838}
+.primary.daily-done{
+  background:linear-gradient(100deg, #4ade80, #38bdf8);
+  color:#041019;
+  box-shadow:0 9px 28px rgba(74, 222, 128, 0.34);
+}
 .secondary{background:rgba(18, 25, 56, 0.82);color:var(--text);border:1px solid var(--line)}
 .sharebtn{
   background:linear-gradient(100deg, #4ade80, #38bdf8);
   color:#041019;
   box-shadow:0 9px 28px rgba(56, 189, 248, 0.34);
 }
+.daily-status{
+  display:none;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:10px;
+  padding:9px 14px;
+  border-radius:12px;
+  background:rgba(9, 34, 36, 0.75);
+  border:1px solid rgba(74, 222, 128, 0.38);
+  font-size:12px;
+  color:#bbf7d0;
+}
+.daily-status.show{display:flex}
+.daily-status strong{color:#ffffff}
 .subactions{display:flex;gap:10px;margin-top:11px}.subactions .btn{flex:1}
 .rules{display:flex;gap:8px;align-items:flex-start;color:var(--muted);font-size:12px;line-height:1.5;margin-top:16px}.rules b{color:var(--text)}
 
@@ -571,7 +591,7 @@ body.in-game .shell{
   box-shadow:0 9px 28px rgba(251, 191, 36, 0.35);
 }
 
-/* Compact Stage Feedback Banner (No Bell Curve During Stages) */
+/* Compact Stage Feedback Banner */
 .feedback{
   margin-top:9px;
   padding:12px 16px;
@@ -950,7 +970,7 @@ body.in-game .footer{display:none}
 
 <!-- FOREGROUND FLOATING UI -->
 <div class="shell">
-  <header class="top"><div class="logo">BALL<span>ISTIC</span></div><div class="pill">✦ DEEP SPACE BALL KNOWLEDGE</div></header>
+  <header class="top"><div class="logo">BALL<span>ISTIC</span></div><div class="pill" id="poolBadge">✦ DEEP SPACE BALL KNOWLEDGE</div></header>
 
   <main id="home" class="screen active">
     <section class="hero">
@@ -974,8 +994,12 @@ body.in-game .footer{display:none}
       </div>
 
       <button class="btn primary" id="startBtn">LAUNCH DAILY MISSION&nbsp; 🚀</button>
+      <div class="daily-status" id="dailyStatus">
+        <span>✓ Today’s official flight is locked in: <strong id="dailyLockedScore">0 MI</strong></span>
+        <span>New prompts at midnight</span>
+      </div>
       <div class="subactions"><button class="btn secondary" id="practiceBtn">FREE FLIGHT MODE</button><button class="btn secondary" id="howBtn">FLIGHT BRIEFING</button></div>
-      <div class="rules"><span>🛰️</span><span><b>1 point = 1,000 miles.</b> Every valid brand falls into one of 5 cosmic rarity tiers—from <b>Space Dust (10)</b> up to <b>Singularity (100)</b>. View your percentile rank on a normal curve at the end of the round.</span></div>
+      <div class="rules"><span>🛰️</span><span><b>1 point = 1,000 miles.</b> Every valid brand falls into one of 5 cosmic rarity tiers—from <b>Space Dust (10)</b> up to <b>Singularity (100)</b>. Daily Mission updates every 24 hours; Free Flight Mode is unlimited.</span></div>
     </section>
   </main>
 
@@ -995,7 +1019,7 @@ body.in-game .footer{display:none}
           <span class="qicon" id="qIcon">👟</span>
           <h2 id="question">Name a sneaker brand.</h2>
         </div>
-        <p>Dig into your bag. Rarer brands unlock higher cosmic tiers.</p>
+        <p id="qSub">Dig into your bag. Rarer brands unlock higher cosmic tiers.</p>
       </section>
     </div>
 
@@ -1052,7 +1076,7 @@ body.in-game .footer{display:none}
   <main id="results" class="screen">
     <section class="resulthead">
       <div class="medal" id="medal">🚀</div>
-      <div class="eyebrow">ROUND COMPLETE</div>
+      <div class="eyebrow" id="resultEyebrow">ROUND COMPLETE</div>
       <h2 id="resultTitle">Solid Ball Knowledge.</h2>
       <p id="resultSubtitle">Final distance from Earth:</p>
       <div class="finalscore" id="finalScore">0 <span>MILES</span></div>
@@ -1101,155 +1125,147 @@ function snapToCosmicTier(rawPts){
 
 const getTierInfo = pts => COSMIC_TIERS[snapToCosmicTier(pts)] || COSMIC_TIERS[10];
 
+// Live web-verified brands snap to Space Dust (10), Satellite (25), Nebula (50), or Supernova (75)
+function scoreFromSitelinks(count){
+  if(count >= 75) return 10; // Space Dust
+  if(count >= 45) return 25; // Satellite
+  if(count >= 20) return 50; // Nebula
+  return 75;                 // Supernova
+}
+
 const categories = [
   {
+    baseKey: "sneakers",
     q: "Name a sneaker brand.",
+    comboTopic: "sneaker brand",
     icon: "👟",
     keywords: ["sneaker", "shoe", "footwear", "athletic", "sportswear", "running", "skate", "trainer", "apparel", "sport", "boot", "sandal", "slipper", "clog"],
     brands: {
-      // 10 — Space Dust
       "Nike":10,"Adidas":10,"Jordan":10,"Air Jordan":10,"Converse":10,"Vans":10,"Puma":10,"Skechers":10,
-      // 25 — Satellite
       "New Balance":25,"Reebok":25,"Under Armour":25,"Crocs":25,"Timberland":25,"Birkenstock":25,"UGG":25,
       "Dr. Martens":25,"Champion":25,"Steve Madden":25,"ASICS":25,"Hoka":25,"Brooks":25,
-      // 50 — Nebula
       "FILA":50,"On Running":50,"Salomon":50,"Saucony":50,"Mizuno":50,"Merrell":50,"DC Shoes":50,
       "Umbro":50,"Kappa":50,"VEJA":50,"Allbirds":50,"Keen":50,"Teva":50,"Clarks":50,"Sperry":50,
       "Cole Haan":50,"Ecco":50,"Golden Goose":50,"Rick Owens":50,"K-Swiss":50,"Etnies":50,
-      // 75 — Supernova
       "Superga":75,"Diadora":75,"Karhu":75,"Onitsuka Tiger":75,"Altra":75,"Topo Athletic":75,
       "La Sportiva":75,"Scarpa":75,"Chaco":75,"Geox":75,"Common Projects":75,"Axel Arigato":75,
       "Autry":75,"Maison Mihara Yasuhiro":75,"Anta":75,"Li-Ning":75,"361 Degrees":75,"Peak":75,
       "Le Coq Sportif":75,"Gola":75,"Feiyue":75,"Hummel":75,"Joma":75,"Inov-8":75,"Xero Shoes":75,
       "Vivobarefoot":75,"Lems":75,"Lakai":75,"Emerica":75,"Osiris":75,"Globe":75,
-      // 100 — Singularity (2 ultra-rare picks)
       "Novesta":100,"Stepney Workers Club":100
     }
   },
   {
+    baseKey: "fashion_apparel",
     q: "Name a luxury fashion brand.",
+    comboTopic: "fashion or apparel brand",
     icon: "👜",
     keywords: ["fashion", "luxury", "couture", "clothing", "apparel", "handbag", "designer", "leather", "garment", "accessories", "jewelry", "watch", "tailor", "atelier", "haute", "menswear", "womenswear"],
     brands: {
-      // 10 — Space Dust
       "Louis Vuitton":10,"Gucci":10,"Chanel":10,"Prada":10,"Dior":10,"Versace":10,"Rolex":10,"Coach":10,
-      // 25 — Satellite
       "Burberry":25,"Balenciaga":25,"Hermès":25,"YSL":25,"Saint Laurent":25,"Valentino":25,
       "Michael Kors":25,"Kate Spade":25,"Tory Burch":25,"Ralph Lauren":25,"Giorgio Armani":25,
       "Dolce & Gabbana":25,"Tiffany & Co.":25,"Cartier":25,"Hugo Boss":25,"Marc Jacobs":25,
-      // 50 — Nebula
       "Bottega Veneta":50,"Loewe":50,"Celine":50,"Givenchy":50,"Fendi":50,"Moncler":50,"Miu Miu":50,
       "Tom Ford":50,"Alexander McQueen":50,"Balmain":50,"Jimmy Choo":50,"Christian Louboutin":50,
       "Manolo Blahnik":50,"Salvatore Ferragamo":50,"Kenzo":50,"Moschino":50,"Off-White":50,
       "Acne Studios":50,"Jacquemus":50,"Chloé":50,"Max Mara":50,"Stone Island":50,"Canada Goose":50,
       "Omega":50,"Patek Philippe":50,"Audemars Piguet":50,"Breitling":50,"TAG Heuer":50,"Bulgari":50,
       "Van Cleef & Arpels":50,"Chrome Hearts":50,"Fear of God":50,"Amiri":50,"Goyard":50,
-      // 75 — Supernova
       "Tod's":75,"Isabel Marant":75,"Lanvin":75,"Ermenegildo Zegna":75,"Brunello Cucinelli":75,
       "Loro Piana":75,"Maison Margiela":75,"Rick Owens":75,"Comme des Garçons":75,"Yohji Yamamoto":75,
       "Issey Miyake":75,"Dries Van Noten":75,"Jil Sander":75,"Marni":75,"Etro":75,"Missoni":75,
       "Schiaparelli":75,"Alaïa":75,"Mugler":75,"Jean Paul Gaultier":75,"Coperni":75,"Lemaire":75,
       "Ami Paris":75,"Maison Kitsuné":75,"Thom Browne":75,"Berluti":75,"John Lobb":75,"Brioni":75,
       "Kiton":75,"Canali":75,"Vacheron Constantin":75,"Jaeger-LeCoultre":75,"IWC Schaffhausen":75,"Richard Mille":75,
-      // 100 — Singularity (2 ultra-rare picks)
       "Delvaux":100,"Valextra":100
     }
   },
   {
+    baseKey: "fast_food",
     q: "Name a fast-food restaurant chain.",
+    comboTopic: "fast-food or restaurant chain",
     icon: "🍔",
     keywords: ["fast food", "fast-food", "restaurant", "burger", "pizza", "chicken", "taco", "sandwich", "coffee", "bakery", "diner", "drive-thru", "food chain", "quick-service", "sub", "cafe", "café", "wings", "ice cream", "smoothie", "donuts", "doughnut", "burrito"],
     brands: {
-      // 10 — Space Dust
       "McDonald's":10,"Burger King":10,"Wendy's":10,"Taco Bell":10,"Subway":10,"KFC":10,"Starbucks":10,"Domino's":10,"Chick-fil-A":10,
-      // 25 — Satellite
       "Popeyes":25,"Chipotle":25,"Pizza Hut":25,"Five Guys":25,"Dairy Queen":25,"Little Caesars":25,
       "Wingstop":25,"Dunkin'":25,"Panda Express":25,"Panera Bread":25,"Papa John's":25,"Jimmy John's":25,
       "Jersey Mike's":25,"Raising Cane's":25,"In-N-Out":25,"Sonic":25,"Arby's":25,"Jack in the Box":25,"Krispy Kreme":25,
-      // 50 — Nebula
       "Shake Shack":50,"Whataburger":50,"Culver's":50,"Carl's Jr.":50,"Hardee's":50,"White Castle":50,
       "Zaxby's":50,"Bojangles":50,"Church's Chicken":50,"Tim Hortons":50,"Firehouse Subs":50,
       "Auntie Anne's":50,"Cinnabon":50,"Baskin-Robbins":50,"Cold Stone Creamery":50,"Jamba Juice":50,
       "Smoothie King":50,"Qdoba":50,"Moe's Southwest Grill":50,"Del Taco":50,"El Pollo Loco":50,
       "Checkers":50,"Rally's":50,"Long John Silver's":50,"Blaze Pizza":50,"MOD Pizza":50,
       "Steak 'n Shake":50,"Smashburger":50,"Freddy's":50,"Portillo's":50,"Jollibee":50,"Nando's":50,"Dave's Hot Chicken":50,
-      // 75 — Supernova
       "Captain D's":75,"Noodles & Company":75,"Marco's Pizza":75,"Jet's Pizza":75,"Wienerschnitzel":75,
       "Greggs":75,"Pret A Manger":75,"Mos Burger":75,"Yoshinoya":75,"Sukiya":75,"CoCo Ichibanya":75,
       "Luckin Coffee":75,"Pollo Campero":75,"Pollo Tropical":75,"Cook Out":75,"Krystal":75,"Taco John's":75,
       "Taco Cabana":75,"Rubio's":75,"Torchy's Tacos":75,"Velvet Taco":75,"Fatburger":75,"Habit Burger Grill":75,
       "Braum's":75,"Skyline Chili":75,"Bonchon":75,"Potbelly":75,"Which Wich":75,"Schlotzsky's":75,
       "McAlister's Deli":75,"Jason's Deli":75,"Capriotti's":75,
-      // 100 — Singularity (2 ultra-rare picks)
       "Runza":100,"Mixue":100
     }
   },
   {
+    baseKey: "automotive",
     q: "Name a car manufacturer.",
+    comboTopic: "car or motorcycle manufacturer",
     icon: "🚘",
-    keywords: ["car", "automobile", "automotive", "vehicle", "motor", "electric vehicle", "truck", "suv", "supercar", "hypercar", "marque", "automaker", "motorsport"],
+    keywords: ["car", "automobile", "automotive", "vehicle", "motor", "electric vehicle", "truck", "suv", "supercar", "hypercar", "marque", "automaker", "motorsport", "motorcycle"],
     brands: {
-      // 10 — Space Dust
       "Toyota":10,"Honda":10,"Ford":10,"Chevrolet":10,"BMW":10,"Mercedes-Benz":10,"Tesla":10,"Nissan":10,"Jeep":10,
-      // 25 — Satellite
       "Audi":25,"Hyundai":25,"Kia":25,"Volkswagen":25,"Porsche":25,"Ferrari":25,"Lamborghini":25,
       "Dodge":25,"Subaru":25,"Mazda":25,"Lexus":25,"Volvo":25,"Ram":25,"GMC":25,"Cadillac":25,
       "Acura":25,"Infiniti":25,"Rolls-Royce":25,"Land Rover":25,"Jaguar":25,"Mini":25,"Mitsubishi":25,"Bugatti":25,
-      // 50 — Nebula
       "Aston Martin":50,"McLaren":50,"Rivian":50,"Lucid":50,"Buick":50,"Lincoln":50,"Chrysler":50,
       "Genesis":50,"Alfa Romeo":50,"Fiat":50,"Maserati":50,"Bentley":50,"Suzuki":50,"Polestar":50,
       "Lotus":50,"Smart":50,"BYD":50,"Renault":50,"Peugeot":50,"Citroën":50,"DeLorean":50,
       "Pontiac":50,"Hummer":50,"Scion":50,"Saab":50,
-      // 75 — Supernova
       "Koenigsegg":75,"Pagani":75,"Rimac":75,"Hennessey":75,"Fisker":75,"VinFast":75,"NIO":75,
       "XPeng":75,"Li Auto":75,"Geely":75,"Zeekr":75,"Tata Motors":75,"Mahindra":75,"Isuzu":75,
       "Daihatsu":75,"Alpine":75,"Opel":75,"Vauxhall":75,"Skoda":75,"SEAT":75,"Cupra":75,
       "Dacia":75,"Lada":75,"Oldsmobile":75,"Saturn":75,"Mercury":75,"Caterham":75,"Morgan":75,
-      // 100 — Singularity (2 ultra-rare picks)
       "TVR":100,"Ariel":100
     }
   },
   {
+    baseKey: "tech_software",
     q: "Name a technology company.",
+    comboTopic: "tech or software company",
     icon: "💻",
     keywords: ["technology", "software", "hardware", "computer", "electronics", "semiconductor", "internet", "cloud", "smartphone", "telecom", "audio", "gaming", "artificial intelligence", "robotics", "device", "cybersecurity", "processor", "fintech", "streaming"],
     brands: {
-      // 10 — Space Dust
       "Apple":10,"Microsoft":10,"Google":10,"Samsung":10,"Amazon":10,"Sony":10,"Meta":10,"Netflix":10,"Nintendo":10,
-      // 25 — Satellite
       "Nvidia":25,"Intel":25,"AMD":25,"Dell":25,"HP":25,"Lenovo":25,"ASUS":25,"Spotify":25,"Bose":25,
       "Uber":25,"Airbnb":25,"Adobe":25,"Logitech":25,"IBM":25,"Oracle":25,"Zoom":25,"LG":25,
       "Panasonic":25,"Dyson":25,"PayPal":25,"Beats":25,"JBL":25,"OpenAI":25,"SpaceX":25,"Nokia":25,"Motorola":25,
-      // 50 — Nebula
       "Cisco":50,"Anker":50,"Sonos":50,"DJI":50,"Razer":50,"Corsair":50,"Acer":50,"MSI":50,
       "Alienware":50,"OnePlus":50,"Xiaomi":50,"Huawei":50,"Garmin":50,"GoPro":50,"Roku":50,
       "Philips":50,"Salesforce":50,"Shopify":50,"Stripe":50,"Square":50,"Slack":50,"Dropbox":50,
       "Intuit":50,"Autodesk":50,"SAP":50,"Qualcomm":50,"Western Digital":50,"Seagate":50,"SanDisk":50,
       "Ring":50,"Nest":50,"Sennheiser":50,"Canva":50,"Valve":50,"Epic Games":50,
-      // 75 — Supernova
       "Gigabyte":75,"Atlassian":75,"ServiceNow":75,"Snowflake":75,"Databricks":75,"Palantir":75,
       "Cloudflare":75,"CrowdStrike":75,"Broadcom":75,"Micron":75,"Kingston":75,"Netgear":75,
       "TP-Link":75,"Ubiquiti":75,"Bang & Olufsen":75,"ASML":75,"Nothing":75,"TSMC":75,"ARM":75,
       "Texas Instruments":75,"Figma":75,"Notion":75,"Anthropic":75,"Boston Dynamics":75,"Ericsson":75,
       "Siemens":75,"Honeywell":75,"Raspberry Pi":75,"Unity":75,"Wacom":75,"BenQ":75,"Noctua":75,
       "SteelSeries":75,"Shure":75,
-      // 100 — Singularity (2 ultra-rare picks)
       "Teenage Engineering":100,"Framework":100
     }
   },
   {
+    baseKey: "cosmetics",
     q: "Name a cosmetics or skincare brand.",
+    comboTopic: "cosmetics or skincare brand",
     icon: "🧴",
     keywords: ["cosmetic", "skincare", "skin care", "makeup", "beauty", "fragrance", "perfume", "haircare", "personal care", "dermatolog", "lotion", "serum", "soap", "cleanser", "moisturizer", "lipstick", "mascara", "sunscreen"],
     brands: {
-      // 10 — Space Dust
       "Maybelline":10,"L'Oréal":10,"MAC":10,"Sephora":10,"CeraVe":10,"Neutrogena":10,"Dove":10,"Nivea":10,"e.l.f.":10,
-      // 25 — Satellite
       "NYX":25,"Olay":25,"Clinique":25,"Estée Lauder":25,"Glossier":25,"Fenty Beauty":25,"Rare Beauty":25,
       "The Ordinary":25,"Garnier":25,"Revlon":25,"CoverGirl":25,"La Roche-Posay":25,"Charlotte Tilbury":25,
       "NARS":25,"Urban Decay":25,"Cetaphil":25,"Aveeno":25,"Vaseline":25,"Aquaphor":25,"Burt's Bees":25,
       "Lush":25,"Bath & Body Works":25,"Kylie Cosmetics":25,
-      // 50 — Nebula
       "Lancôme":50,"Kiehl's":50,"Drunk Elephant":50,"Tatcha":50,"Aesop":50,"Laneige":50,"COSRX":50,
       "Too Faced":50,"Benefit":50,"Bobbi Brown":50,"Smashbox":50,"Anastasia Beverly Hills":50,
       "Huda Beauty":50,"Milk Makeup":50,"Tower 28":50,"Saie":50,"Ilia":50,"Merit":50,"Summer Fridays":50,
@@ -1259,41 +1275,36 @@ const categories = [
       "Youth To The People":50,"Sunday Riley":50,"Ole Henriksen":50,"Fresh":50,"Caudalie":50,"Vichy":50,
       "La Mer":50,"Byredo":50,"Le Labo":50,"Diptyque":50,"Jo Malone":50,"Pat McGrath Labs":50,
       "Kosas":50,"Haus Labs":50,"Biore":50,"SkinCeuticals":50,"EltaMD":50,"Vanicream":50,"Hero Cosmetics":50,"Olaplex":50,
-      // 75 — Supernova
       "Physicians Formula":75,"Kiko Milano":75,"SK-II":75,"Sulwhasoo":75,"Etude":75,"Missha":75,
       "Banila Co":75,"Peter Thomas Roth":75,"Nuxe":75,"Avène":75,"Augustinus Bader":75,"Sisley Paris":75,
       "Guerlain":75,"Natasha Denona":75,"Jones Road":75,"Hada Labo":75,"DHC":75,"Shu Uemura":75,
       "Dr. Barbara Sturm":75,"Obagi":75,"Good Molecules":75,"Naturium":75,"Byoma":75,
-      // 100 — Singularity (2 ultra-rare picks)
       "Biologique Recherche":100,"Westman Atelier":100
     }
   },
   {
+    baseKey: "sportswear",
     q: "Name a sportswear or outdoor brand.",
+    comboTopic: "sportswear or outdoor brand",
     icon: "🏔️",
     keywords: ["sportswear", "outdoor", "athletic", "activewear", "apparel", "clothing", "hiking", "climbing", "mountaineering", "running", "cycling", "surf", "skate", "ski", "footwear", "gear", "camping", "backpack", "snowboard"],
     brands: {
-      // 10 — Space Dust
       "Nike":10,"Adidas":10,"Under Armour":10,"Puma":10,"The North Face":10,"Patagonia":10,"Columbia":10,"Lululemon":10,
-      // 25 — Satellite
       "Reebok":25,"Champion":25,"Carhartt":25,"Oakley":25,"Vans":25,"Converse":25,"New Balance":25,
       "ASICS":25,"Arc'teryx":25,"REI":25,"Timberland":25,"Canada Goose":25,"Speedo":25,"Wilson":25,
       "Yeti":25,"Hydro Flask":25,"Stanley":25,"Gymshark":25,"Alo Yoga":25,
-      // 50 — Nebula
       "Fila":50,"Mammut":50,"Marmot":50,"Helly Hansen":50,"Fjällräven":50,"Salomon":50,"Black Diamond":50,
       "Cotopaxi":50,"Vuori":50,"Athleta":50,"Fabletics":50,"Eddie Bauer":50,"L.L.Bean":50,"Lands' End":50,
       "Merrell":50,"Keen":50,"Sorel":50,"Burton":50,"Quiksilver":50,"Billabong":50,"Roxy":50,
       "Volcom":50,"Hurley":50,"Rip Curl":50,"O'Neill":50,"Head":50,"Babolat":50,"Yonex":50,
       "Mizuno":50,"Saucony":50,"Brooks":50,"Hoka":50,"On Running":50,"Osprey":50,"CamelBak":50,
       "Specialized":50,"Trek":50,"Cannondale":50,"Mountain Hardwear":50,"Outdoor Research":50,
-      // 75 — Supernova
       "Sweaty Betty":75,"Outdoor Voices":75,"Arena":75,"TYR":75,"Umbro":75,"Kappa":75,"Castore":75,
       "Rab":75,"Montbell":75,"Gregory":75,"Deuter":75,"Kelty":75,"Big Agnes":75,"MSR":75,
       "Sea to Summit":75,"Petzl":75,"La Sportiva":75,"Scarpa":75,"Salewa":75,"Dynafit":75,
       "Norrøna":75,"Haglöfs":75,"Jack Wolfskin":75,"Vaude":75,"Rossignol":75,"K2":75,"Atomic":75,
       "Smith Optics":75,"POC":75,"Giro":75,"Rapha":75,"Castelli":75,"Assos":75,"Tracksmith":75,
       "Satisfy":75,"Ten Thousand":75,"Rhone":75,"Kuhl":75,"PrAna":75,"Filson":75,"Orvis":75,
-      // 100 — Singularity (2 ultra-rare picks)
       "Klättermusen":100,"Ortovox":100
     }
   }
@@ -1328,55 +1339,146 @@ const ALIASES = {
   "instagram":"meta","ig":"meta","yt":"google","youtube":"google","aws":"amazon"
 };
 
-// Merge generated Wikidata brands & aliases from brands_data.js without overwriting custom 100-pt Singularity picks
+function normalize(s){
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[øØ]/g, "o")
+    .replace(/[æÆ]/g, "ae")
+    .replace(/[œŒ]/g, "oe")
+    .replace(/ß/g, "ss")
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+// Merge generated Wikidata brands, new categories, AND auto-generated Country + Category combo prompts
 (function mergeGeneratedDatabase(){
   if(!window.SINGULARITY_DB || !window.SINGULARITY_DB.brands) return;
 
   const extraCategories = [
     {
-      dbKey: "airlines",
+      baseKey: "airlines",
       q: "Name a commercial airline.",
+      comboTopic: "commercial airline",
       icon: "✈️",
       keywords: ["airline", "airways", "aviation", "carrier", "flight", "jet", "air transport"],
-      brands: { "JetBlue": 50, "Spirit Airlines": 50, "Ryanair": 50, "easyJet": 50, "Porter Airlines": 75, "JSX": 100, "La Compagnie": 100 }
+      brands: { "Delta Air Lines": 10, "United Airlines": 10, "American Airlines": 10, "Southwest Airlines": 10, "JetBlue": 25, "British Airways": 25, "Lufthansa": 25, "Emirates": 25, "Ryanair": 50, "easyJet": 50, "Singapore Airlines": 50, "Porter Airlines": 75, "JSX": 100, "La Compagnie": 100 }
     },
     {
-      dbKey: "beverages",
+      baseKey: "beverages",
       q: "Name a soda, coffee, or beverage brand.",
+      comboTopic: "beverage or brewing brand",
       icon: "🥤",
       keywords: ["beverage", "soda", "soft drink", "coffee", "tea", "juice", "water", "energy drink", "beer", "brewery", "drink"],
-      brands: { "Coca-Cola": 10, "Pepsi": 10, "Gatorade": 10, "Red Bull": 10, "Monster Energy": 25, "Dr Pepper": 25, "Liquid Death": 50, "Olipop": 50, "Poppi": 50, "Guayakí": 75, "Bawls": 100, "Moxie": 100 }
+      brands: { "Coca-Cola": 10, "Pepsi": 10, "Gatorade": 10, "Red Bull": 10, "Sprite": 10, "Monster Energy": 25, "Dr Pepper": 25, "Mountain Dew": 25, "Heineken": 25, "Liquid Death": 50, "Olipop": 50, "Poppi": 50, "Guayakí": 75, "Bawls": 100, "Moxie": 100 }
     },
     {
-      dbKey: "video_games",
+      baseKey: "video_games",
       q: "Name a video game studio or console brand.",
+      comboTopic: "video game studio or publisher",
       icon: "🎮",
       keywords: ["video game", "game developer", "game publisher", "console", "gaming", "esports", "interactive entertainment"],
-      brands: { "Nintendo": 10, "PlayStation": 10, "Xbox": 10, "EA": 10, "Activision": 25, "Ubisoft": 25, "Rockstar Games": 25, "Epic Games": 25, "Bethesda": 50, "FromSoftware": 50, "Supergiant Games": 75, "Larian Studios": 75, "Team Cherry": 100, "Devolver Digital": 100 }
+      brands: { "Nintendo": 10, "PlayStation": 10, "Xbox": 10, "EA": 10, "Activision": 25, "Ubisoft": 25, "Rockstar Games": 25, "Epic Games": 25, "Capcom": 25, "Bethesda": 50, "FromSoftware": 50, "Square Enix": 50, "Supergiant Games": 75, "Larian Studios": 75, "Team Cherry": 100, "Devolver Digital": 100 }
     },
     {
-      dbKey: "retail_supermarkets",
+      baseKey: "retail_supermarkets",
       q: "Name a retail store or supermarket chain.",
+      comboTopic: "retail or supermarket chain",
       icon: "🛒",
       keywords: ["retail", "supermarket", "grocery", "department store", "hypermarket", "store chain", "warehouse club"],
-      brands: { "Walmart": 10, "Target": 10, "Costco": 10, "Amazon": 10, "Trader Joe's": 25, "Aldi": 25, "Whole Foods": 25, "Publix": 50, "H-E-B": 50, "Wegmans": 50, "Erewhon": 75, "Piggly Wiggly": 75, "Stew Leonard's": 100, "Buc-ee's": 100 }
+      brands: { "Walmart": 10, "Target": 10, "Costco": 10, "Amazon": 10, "Home Depot": 10, "Trader Joe's": 25, "Aldi": 25, "Whole Foods": 25, "Kroger": 25, "Publix": 50, "H-E-B": 50, "Wegmans": 50, "Erewhon": 75, "Piggly Wiggly": 75, "Stew Leonard's": 100, "Buc-ee's": 100 }
+    },
+    {
+      baseKey: "candy_snacks",
+      q: "Name a candy, chocolate, or snack brand.",
+      comboTopic: "candy or snack brand",
+      icon: "🍫",
+      keywords: ["candy", "chocolate", "snack", "confectionery", "chips", "cookie", "cracker", "gum", "sweet"],
+      brands: { "Hershey's": 10, "M&M's": 10, "Snickers": 10, "Reese's": 10, "Doritos": 10, "Lay's": 10, "Oreo": 10, "KitKat": 25, "Skittles": 25, "Pringles": 25, "Lindt": 25, "Haribo": 25, "Toblerone": 50, "Ferrero Rocher": 50, "Ghirardelli": 50, "Hi-Chew": 50, "Tony's Chocolonely": 75, "Ritter Sport": 75, "Necco": 100, "Zagnut": 100 }
+    },
+    {
+      baseKey: "watchmakers",
+      q: "Name a watchmaker or timepiece brand.",
+      comboTopic: "watchmaker",
+      icon: "⌚",
+      keywords: ["watch", "watchmaker", "horology", "timepiece", "chronograph"],
+      brands: { "Rolex": 10, "Casio": 10, "Seiko": 10, "Timex": 10, "Fossil": 25, "Omega": 25, "TAG Heuer": 25, "Citizen": 25, "Swatch": 25, "Tissot": 50, "Breitling": 50, "Patek Philippe": 50, "Audemars Piguet": 50, "Longines": 50, "Hamilton": 50, "Grand Seiko": 75, "Tudor": 75, "Jaeger-LeCoultre": 75, "Oris": 75, "A. Lange & Söhne": 100, "Nomos Glashütte": 100 }
+    },
+    {
+      baseKey: "hotels_resorts",
+      q: "Name a hotel or resort chain.",
+      comboTopic: "hotel chain",
+      icon: "🏨",
+      keywords: ["hotel", "resort", "hospitality", "motel", "inn", "lodging"],
+      brands: { "Marriott": 10, "Hilton": 10, "Hyatt": 10, "Holiday Inn": 10, "Sheraton": 25, "Four Seasons": 25, "Ritz-Carlton": 25, "Best Western": 25, "Westin": 25, "InterContinental": 50, "Fairmont": 50, "Waldorf Astoria": 50, "Mandarin Oriental": 75, "Shangri-La": 75, "Aman Resorts": 100, "Belmond": 100 }
+    },
+    {
+      baseKey: "streaming_media",
+      q: "Name a streaming platform or TV network.",
+      comboTopic: "streaming service or TV network",
+      icon: "📺",
+      keywords: ["streaming", "television", "tv network", "broadcast", "channel", "media"],
+      brands: { "Netflix": 10, "YouTube": 10, "Disney+": 10, "Hulu": 10, "ESPN": 10, "HBO": 10, "CNN": 10, "Prime Video": 25, "Paramount+": 25, "Peacock": 25, "Apple TV+": 25, "NBC": 25, "CBS": 25, "ABC": 25, "BBC": 25, "Crunchyroll": 50, "Twitch": 50, "Showtime": 50, "Criterion Channel": 75, "MUBI": 75, "Dropout": 100, "Nebula": 100 }
+    },
+    {
+      baseKey: "music_gear",
+      q: "Name a musical instrument or audio gear brand.",
+      comboTopic: "musical instrument or audio brand",
+      icon: "🎸",
+      keywords: ["guitar", "piano", "musical instrument", "synthesizer", "amplifier", "drum", "microphone", "audio"],
+      brands: { "Fender": 10, "Gibson": 10, "Yamaha": 10, "Bose": 10, "Sony": 10, "Roland": 25, "Steinway & Sons": 25, "Marshall": 25, "Shure": 25, "Sennheiser": 25, "Ibanez": 50, "Korg": 50, "Moog": 50, "Taylor Guitars": 50, "Martin": 50, "Zildjian": 50, "PRS Guitars": 75, "Audio-Technica": 75, "Elektron": 100, "Buchla": 100 }
+    },
+    {
+      baseKey: "toy_brands",
+      q: "Name a toy or board game brand.",
+      comboTopic: "toy or game brand",
+      icon: "🧸",
+      keywords: ["toy", "board game", "action figure", "doll", "puzzle", "game"],
+      brands: { "LEGO": 10, "Barbie": 10, "Hot Wheels": 10, "Nerf": 10, "Hasbro": 10, "Mattel": 10, "Monopoly": 25, "Fisher-Price": 25, "Play-Doh": 25, "Funko": 25, "Pokemon": 25, "Playmobil": 50, "Bandai": 50, "Tamagotchi": 50, "Melissa & Doug": 50, "Ravensburger": 75, "Takara Tomy": 75, "Schleich": 100, "Brio": 100 }
+    },
+    {
+      baseKey: "banks_fintech",
+      q: "Name a bank or financial services brand.",
+      comboTopic: "bank or financial brand",
+      icon: "💳",
+      keywords: ["bank", "banking", "financial", "credit card", "fintech", "investment", "insurance"],
+      brands: { "Chase": 10, "Bank of America": 10, "Wells Fargo": 10, "Visa": 10, "Mastercard": 10, "PayPal": 10, "American Express": 10, "Capital One": 25, "Citibank": 25, "Goldman Sachs": 25, "Venmo": 25, "Fidelity": 25, "Charles Schwab": 50, "Morgan Stanley": 50, "Barclays": 50, "HSBC": 50, "Revolut": 75, "Klarna": 75, "Wise": 75, "Monzo": 100, "N26": 100 }
+    },
+    {
+      baseKey: "sports_teams",
+      q: "Name a professional sports franchise or club.",
+      comboTopic: "sports club or team",
+      icon: "🏆",
+      keywords: ["football club", "basketball team", "baseball team", "sports team", "soccer", "franchise", "club"],
+      brands: { "New York Yankees": 10, "Los Angeles Lakers": 10, "Dallas Cowboys": 10, "Real Madrid": 10, "FC Barcelona": 10, "Manchester United": 10, "Golden State Warriors": 25, "Boston Celtics": 25, "Liverpool F.C.": 25, "Arsenal F.C.": 25, "Kansas City Chiefs": 25, "Los Angeles Dodgers": 25, "Bayern Munich": 25, "Paris Saint-Germain": 25, "Juventus": 50, "AC Milan": 50, "Inter Milan": 50, "Borussia Dortmund": 50, "Chicago Bulls": 25, "Green Bay Packers": 25, "Ajax": 75, "Benfica": 75, "Celtic F.C.": 75, "Atalanta": 100, "St. Pauli": 100 }
+    },
+    {
+      baseKey: "tire_auto_parts",
+      q: "Name a tire or automotive parts brand.",
+      comboTopic: "tire or auto parts brand",
+      icon: "🛞",
+      keywords: ["tire", "tyre", "automotive parts", "brake", "motor oil", "wheel"],
+      brands: { "Michelin": 10, "Goodyear": 10, "Bridgestone": 10, "Firestone": 25, "Pirelli": 25, "Continental": 25, "Dunlop": 25, "BFGoodrich": 50, "Yokohama": 50, "Hankook": 50, "Toyo Tires": 50, "Brembo": 50, "Bosch": 25, "Falken": 75, "Nokian Tyres": 75, "Kumho": 75, "Vredestein": 100, "Nitto": 100 }
+    },
+    {
+      baseKey: "book_publishers",
+      q: "Name a book or comic publisher.",
+      comboTopic: "book or comic publisher",
+      icon: "📚",
+      keywords: ["publisher", "publishing", "books", "comics", "manga", "imprint"],
+      brands: { "Marvel Comics": 10, "DC Comics": 10, "Scholastic": 10, "Penguin Random House": 10, "HarperCollins": 25, "Simon & Schuster": 25, "Oxford University Press": 25, "McGraw Hill": 25, "Pearson": 25, "Hachette": 50, "Macmillan": 50, "Dark Horse Comics": 50, "Image Comics": 50, "Viz Media": 50, "Shueisha": 75, "Kodansha": 75, "A24": 50, "Faber and Faber": 100, "New Directions": 100 }
     }
   ];
 
   extraCategories.forEach(ec => categories.push(ec));
 
-  const categoryMap = {
-    "fast_food": categories.find(c => c.q.includes("fast-food")),
-    "automotive": categories.find(c => c.q.includes("car manufacturer")),
-    "tech_software": categories.find(c => c.q.includes("technology company")),
-    "cosmetics": categories.find(c => c.q.includes("cosmetics or skincare")),
-    "airlines": categories.find(c => c.dbKey === "airlines"),
-    "beverages": categories.find(c => c.dbKey === "beverages"),
-    "video_games": categories.find(c => c.dbKey === "video_games"),
-    "retail_supermarkets": categories.find(c => c.dbKey === "retail_supermarkets")
-  };
+  const categoryByBaseKey = new Map();
+  for(const cat of categories){
+    categoryByBaseKey.set(cat.baseKey, cat);
+  }
 
-  // Track existing normalized keys per category so custom scores (like 100-pt Singularity picks) stay untouched
   const existingKeys = new Map();
   for(const cat of categories){
     const set = new Set();
@@ -1387,12 +1489,14 @@ const ALIASES = {
     existingKeys.set(cat, set);
   }
 
+  // Track brands by (baseKey -> country -> [{name, points}]) for auto-generating Country + Category prompts
+  const countryBuckets = new Map();
+
   for(const brand of Object.values(window.SINGULARITY_DB.brands)){
     const canonicalNorm = normalize(brand.name);
     if(!canonicalNorm || canonicalNorm.length < 2) continue;
     const resolvedCanonical = ALIASES[canonicalNorm] || canonicalNorm;
 
-    // Register Wikidata alternate names into ALIASES
     if(Array.isArray(brand.keys)){
       for(const rawAlias of brand.keys){
         const aliasNorm = normalize(rawAlias);
@@ -1402,14 +1506,61 @@ const ALIASES = {
       }
     }
 
-    // Add brand into each matching category
+    const pts = scoreFromSitelinks(brand.popularity || 25);
+
     for(const dbCat of (brand.categories || [])){
-      const targetCat = categoryMap[dbCat];
+      const targetCat = categoryByBaseKey.get(dbCat);
       if(!targetCat) continue;
       const seen = existingKeys.get(targetCat);
       if(!seen.has(resolvedCanonical)){
-        targetCat.brands[brand.name] = scoreFromSitelinks(brand.popularity || 25);
+        targetCat.brands[brand.name] = pts;
         seen.add(resolvedCanonical);
+      }
+
+      if(brand.country){
+        if(!countryBuckets.has(dbCat)) countryBuckets.set(dbCat, new Map());
+        const cMap = countryBuckets.get(dbCat);
+        if(!cMap.has(brand.country)) cMap.set(brand.country, []);
+        cMap.get(brand.country).push({ name: brand.name, points: pts });
+      }
+    }
+  }
+
+  // Auto-generate Country + Category Combo Prompts (Upgrade #1)
+  const COUNTRY_DEMONYMS = [
+    { country: "United States", demonym: "American", flag: "🇺🇸" },
+    { country: "Japan", demonym: "Japanese", flag: "🇯🇵" },
+    { country: "Germany", demonym: "German", flag: "🇩🇪" },
+    { country: "France", demonym: "French", flag: "🇫🇷" },
+    { country: "United Kingdom", demonym: "British", flag: "🇬🇧" },
+    { country: "Italy", demonym: "Italian", flag: "🇮🇹" },
+    { country: "South Korea", demonym: "South Korean", flag: "🇰🇷" },
+    { country: "Switzerland", demonym: "Swiss", flag: "🇨🇭" },
+    { country: "Canada", demonym: "Canadian", flag: "🇨🇦" },
+    { country: "Sweden", demonym: "Swedish", flag: "🇸🇪" }
+  ];
+
+  for(const [baseKey, cMap] of countryBuckets.entries()){
+    const baseCat = categoryByBaseKey.get(baseKey);
+    if(!baseCat || !baseCat.comboTopic) continue;
+
+    for(const { country, demonym, flag } of COUNTRY_DEMONYMS){
+      const matchingBrands = cMap.get(country) || [];
+      if(matchingBrands.length >= 10){
+        const comboBrands = {};
+        for(const item of matchingBrands){
+          comboBrands[item.name] = item.points;
+        }
+        const article = /^[aeiou]/i.test(demonym) ? "an" : "a";
+        categories.push({
+          baseKey: baseKey,
+          isCombo: true,
+          countryFilter: country,
+          q: `Name ${article} ${demonym} ${baseCat.comboTopic}.`,
+          icon: flag,
+          keywords: baseCat.keywords,
+          brands: comboBrands
+        });
       }
     }
   }
@@ -1427,7 +1578,8 @@ const ENTITY_WORDS = [
   "fashion","clothing","footwear","sneaker","cosmetics","skincare","software",
   "technology","electronics","retailer","label","marque","enterprise","subsidiary",
   "division","conglomerate","maker","producer","studio","house","business","trademark",
-  "product line","fast food","coffeehouse","bakery","bakery-cafe","activewear","sportswear"
+  "product line","fast food","coffeehouse","bakery","bakery-cafe","activewear","sportswear",
+  "airline","watchmaker","hotel","publisher","bank","club","team","beverage","candy"
 ];
 
 const onlineCache = new Map();
@@ -1448,6 +1600,61 @@ const $ = id => document.getElementById(id);
 let rounds=[], idx=0, totalMiles=0, answers=[], timer=null, timeLeft=ROUND_SECONDS;
 let locked=false, checking=false, roundToken=0, lockedAt=0, mode="daily";
 let pendingSuggestion = null, lastShareText = "";
+
+// =========================================================
+// DAILY SEED & LOCALSTORAGE LOCK HELPERS (UPGRADE #3)
+// =========================================================
+function getTodayKey(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function hashDateString(str){
+  let h = 2166136261 >>> 0;
+  for(let i = 0; i < str.length; i++){
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function getSavedDailyRun(){
+  try{
+    const raw = localStorage.getItem(`ballistic_daily_${getTodayKey()}`);
+    return raw ? JSON.parse(raw) : null;
+  }catch{
+    return null;
+  }
+}
+
+function saveDailyRun(payload){
+  try{
+    localStorage.setItem(`ballistic_daily_${getTodayKey()}`, JSON.stringify(payload));
+  }catch{}
+}
+
+function syncHomeDailyState(){
+  const saved = getSavedDailyRun();
+  const startBtn = $("startBtn");
+  const statusBanner = $("dailyStatus");
+  if(saved){
+    startBtn.textContent = "VIEW TODAY'S DAILY RECAP 📊";
+    startBtn.classList.add("daily-done");
+    $("dailyLockedScore").textContent = `${formatMiles(saved.totalMiles)} MILES`;
+    statusBanner.classList.add("show");
+  } else {
+    startBtn.innerHTML = "LAUNCH DAILY MISSION&nbsp; 🚀";
+    startBtn.classList.remove("daily-done");
+    statusBanner.classList.remove("show");
+  }
+
+  if($("poolBadge")){
+    $("poolBadge").textContent = `✦ ${categories.length} ACTIVE PROMPTS`;
+  }
+}
 
 // Standard Normal CDF approximation
 function normalCDF(z){
@@ -1539,12 +1746,13 @@ function show(id){
   document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));
   $(id).classList.add("active");
   document.body.classList.toggle("in-game", id === "game");
+  if(id === "home") syncHomeDailyState();
 }
 
 function toast(msg){
   $("toast").textContent = msg;
   $("toast").classList.add("show");
-  setTimeout(()=>$("toast").classList.remove("show"), 2200);
+  setTimeout(()=>$("toast").classList.remove("show"), 2400);
 }
 
 function shuffle(a, seed=null){
@@ -1565,11 +1773,33 @@ function shuffle(a, seed=null){
   return b;
 }
 
+// Pick 7 rounds while avoiding duplicate base topics (e.g. "Car" and "Japanese Car") in the same run
+function pickDistinctRounds(pool, seed=null){
+  const shuffled = shuffle(pool, seed);
+  const picked = [];
+  const usedBaseKeys = new Set();
+
+  for(const item of shuffled){
+    const key = item.baseKey || item.q;
+    if(!usedBaseKeys.has(key)){
+      picked.push(item);
+      usedBaseKeys.add(key);
+      if(picked.length === TOTAL_ROUNDS) return picked;
+    }
+  }
+  for(const item of shuffled){
+    if(!picked.includes(item)){
+      picked.push(item);
+      if(picked.length === TOTAL_ROUNDS) break;
+    }
+  }
+  return picked;
+}
+
 function updateTelemetry(boosted=false){
   $("distance").textContent = `${formatMiles(totalMiles)} MILES`;
   $("zoneBadge").textContent = getCosmicZone(totalMiles);
 
-  // Map 0..500,000 miles across the middle flight corridor (10% -> 91%, with Moon at 48.7%)
   const ratio = Math.min(1, totalMiles / 500000);
   const shipLeft = 10 + ratio * 81;
   const fillWidth = ratio * 81;
@@ -1654,10 +1884,21 @@ function triggerShake(){
 }
 
 function startGame(which){
+  if(which === "daily"){
+    const saved = getSavedDailyRun();
+    if(saved){
+      mode = "daily";
+      totalMiles = saved.totalMiles;
+      answers = saved.answers;
+      renderResultsScreen(true);
+      toast("Showing today's locked-in Daily Mission!");
+      return;
+    }
+  }
+
   mode = which;
-  const today = new Date();
-  const seed = Number(`${today.getFullYear()}${today.getMonth()+1}${today.getDate()}`);
-  rounds = shuffle(categories, which==="daily"?seed:null).slice(0, TOTAL_ROUNDS);
+  const seed = which === "daily" ? hashDateString(getTodayKey()) : null;
+  rounds = pickDistinctRounds(categories, seed);
   idx = 0;
   totalMiles = 0;
   answers = [];
@@ -1676,6 +1917,9 @@ function renderRound(){
   $("roundNum").textContent = `${idx+1} / ${TOTAL_ROUNDS}`;
   $("qIcon").textContent = c.icon;
   $("question").textContent = c.q;
+  $("qSub").textContent = c.isCombo
+    ? `Country challenge (${c.countryFilter}) — only brands from ${c.countryFilter} count!`
+    : "Dig into your bag. Rarer brands unlock higher cosmic tiers.";
 
   $("answer").value = "";
   $("answer").disabled = false;
@@ -1718,20 +1962,6 @@ function updateTimer(){
     ? "linear-gradient(90deg,#fb7185,#fbbf24)"
     : "linear-gradient(90deg,var(--cyan),var(--violet))";
   $("inputWrap").classList.toggle("urgent", urgent && !locked);
-}
-
-function normalize(s){
-  return s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[øØ]/g, "o")
-    .replace(/[æÆ]/g, "ae")
-    .replace(/[œŒ]/g, "oe")
-    .replace(/ß/g, "ss")
-    .toLowerCase()
-    .trim()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]/g, "");
 }
 
 function editDistance(a, b){
@@ -1779,7 +2009,6 @@ function lookupLocal(c, answer){
   return best;
 }
 
-// Check if the input is a real brand in one of the OTHER built-in categories
 function lookupOtherLocalCategory(currentCategory, answer){
   let target = normalize(answer);
   if(!target) return null;
@@ -1802,16 +2031,6 @@ function fetchWithTimeout(url, ms=3200){
   return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(id));
 }
 
-// Live web-verified brands snap to Space Dust (10), Satellite (25), Nebula (50), or Supernova (75)
-// Singularity (100) stays reserved for hand-curated ultra-rare picks!
-function scoreFromSitelinks(count){
-  if(count >= 75) return 10; // Space Dust
-  if(count >= 45) return 25; // Satellite
-  if(count >= 20) return 50; // Nebula
-  return 75;                 // Supernova
-}
-
-// 1. Clearbit Brand & Company Directory
 async function queryClearbitDirectory(rawAnswer){
   try{
     const url = `https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(rawAnswer.trim())}`;
@@ -1824,7 +2043,6 @@ async function queryClearbitDirectory(rawAnswer){
   }
 }
 
-// 2. DuckDuckGo Knowledge Graph Instant Answer API
 async function queryDuckDuckGo(query){
   try{
     const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
@@ -1836,7 +2054,6 @@ async function queryDuckDuckGo(query){
   }
 }
 
-// 3. Wikidata Structured Brand/Company Graph
 async function queryWikidataEntities(rawAnswer){
   try{
     const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(rawAnswer.trim())}&language=en&limit=12&format=json&origin=*`;
@@ -1870,7 +2087,6 @@ async function fetchWikiSummary(title){
   }
 }
 
-// Multi-source brand verification (Clearbit + DuckDuckGo + Wikidata)
 async function verifyBrandOnline(c, rawAnswer){
   const normInput = ALIASES[normalize(rawAnswer)] || normalize(rawAnswer);
   if(!normInput || normInput.length < 2) return null;
@@ -1943,6 +2159,14 @@ async function verifyBrandOnline(c, rawAnswer){
       matchesCategory = c.keywords.some(kw => textToCheck.includes(kw));
     }
 
+    if(matchesCategory && c.countryFilter){
+      const countryNeedle = c.countryFilter.toLowerCase();
+      if(!textToCheck.includes(countryNeedle)){
+        confirmedWrongCategoryName = label || rawAnswer.trim();
+        continue;
+      }
+    }
+
     const sitelinkCount = Object.keys(ent.sitelinks || {}).length;
     if(matchesCategory){
       const result = {
@@ -1971,13 +2195,16 @@ async function verifyBrandOnline(c, rawAnswer){
     const catHint = c.keywords[0];
     const contextDdg = await queryDuckDuckGo(`${cb.name} ${catHint}`);
     const contextText = `${cb.name} ${cb.domain || ""} ${ddgData?.AbstractText || ""} ${contextDdg?.AbstractText || ""} ${contextDdg?.Heading || ""}`.toLowerCase();
-    const matchesCategory = c.keywords.some(kw => contextText.includes(kw));
+    let matchesCategory = c.keywords.some(kw => contextText.includes(kw));
+    if(matchesCategory && c.countryFilter && !contextText.includes(c.countryFilter.toLowerCase())){
+      matchesCategory = false;
+    }
 
     if(matchesCategory){
       const result = {
         exact: m.exact,
         name: cb.name,
-        points: 50, // Nebula tier for directory-verified niche brands
+        points: 50,
         source: "directory",
         dist: m.dist
       };
@@ -2173,8 +2400,8 @@ async function submitAnswer(raw=""){
     if(webMatch?.wrongCategory){
       rejectAnswer(
         answer,
-        `Wrong category for ${webMatch.name}.`,
-        `<b>${escapeHtml(webMatch.name)}</b> is a real brand, but it doesn’t fit “${escapeHtml(c.q)}”.`
+        `Doesn't fit this prompt (${webMatch.name}).`,
+        `<b>${escapeHtml(webMatch.name)}</b> didn’t match all criteria for “${escapeHtml(c.q)}”.`
       );
       return;
     }
@@ -2231,10 +2458,12 @@ async function copyMissionResult(){
   setTimeout(()=>{ btn.textContent = prev; }, 2200);
 }
 
-function finishGame(){
-  clearInterval(timer);
+function renderResultsScreen(isLockedRecap=false){
   show("results");
   $("finalScore").innerHTML = `${formatMiles(totalMiles)} <span>MILES FROM EARTH</span>`;
+  $("resultEyebrow").textContent = mode === "daily"
+    ? (isLockedRecap ? "TODAY'S OFFICIAL DAILY FLIGHT · LOCKED IN" : "DAILY MISSION COMPLETE")
+    : "FREE FLIGHT COMPLETE";
 
   let title =
     totalMiles >= 450000 ? "Certified Interstellar Ball Knowledge." :
@@ -2252,7 +2481,6 @@ function finishGame(){
   $("medal").textContent = medal;
   $("resultSubtitle").textContent = `Final sector: ${getCosmicZone(totalMiles).replace(/^[^\s]+\s/, "")}`;
 
-  // End-of-Round Normal Distribution Bell Curve
   $("finalCurveBox").innerHTML = buildBellCurveHTML({
     value: totalMiles,
     mean: 220000,
@@ -2266,7 +2494,6 @@ function finishGame(){
   const avgMiles = Math.round(totalMiles / TOTAL_ROUNDS);
   const overallTop = getTopPercent(totalMiles, 220000, 105000);
 
-  // Build spoiler-free share strip & clipboard payload
   lastShareText = buildShareSummary(overallTop.label);
   $("shareStrip").textContent = answers.map(a => a.tierIcon || "⬛").join(" ");
 
@@ -2314,6 +2541,20 @@ function finishGame(){
       </div>
       <strong>+${formatMiles(a.miles)} MI</strong>
     </div>`).join("");
+
+  $("againBtn").textContent = mode === "daily" ? "FREE FLIGHT MODE 🚀" : "LAUNCH AGAIN ↻";
+}
+
+function finishGame(){
+  clearInterval(timer);
+  if(mode === "daily"){
+    saveDailyRun({
+      dateKey: getTodayKey(),
+      totalMiles,
+      answers
+    });
+  }
+  renderResultsScreen(false);
 }
 
 function escapeHtml(s){
@@ -2336,7 +2577,7 @@ $("clearBtn").onclick = () => {
 $("continueBtn").onclick = advanceStage;
 $("skipBtn").onclick = () => { if(!checking && !locked) handleTimeout(); };
 $("copyBtn").onclick = copyMissionResult;
-$("againBtn").onclick = () => startGame(mode);
+$("againBtn").onclick = () => startGame("practice");
 $("homeBtn").onclick = () => { clearInterval(timer); show("home"); };
 $("howBtn").onclick = () => toast("Space Dust 10 · Satellite 25 · Nebula 50 · Supernova 75 · Singularity 100");
 
@@ -2361,6 +2602,9 @@ document.addEventListener("keydown", e => {
     $("answer").focus();
   }
 });
+
+// Initialize Home Screen Daily Lock & Prompt Count on Load
+syncHomeDailyState();
 </script>
 </body>
 </html>

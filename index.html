@@ -2507,10 +2507,6 @@ async function submitAnswer(raw=""){
     rejectAnswer(answer);
     return;
   }
-  if(!found){
-    rejectAnswer(answer);
-    return;
-  }
 
   if(!found.exact && (found.source === "local" || found.source === "registry") &&
      found.dist <= 2 && normalize(answer).length >= 7){

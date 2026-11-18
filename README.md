@@ -4,7 +4,7 @@ A space-themed brand trivia game.
 
 ## Prepared Daily Challenges
 
-BLASTOFF now uses a checked-in, precomputed 90-day schedule. Each day contains seven distinct rounds. Question families are broad brand categories and multi-category prompts; accepted answers, aliases, and rarity points are generated ahead of time and saved in `prepared_challenges.js`.
+BLASTOFF now uses a checked-in, precomputed 90-day schedule of 630 unique prompts. Each day contains seven distinct rounds, and no prompt repeats during the 90-day schedule. Question families are broad brand categories and multi-category prompts; accepted answers, aliases, and rarity points are generated ahead of time and saved in `prepared_challenges.js`.
 
 To regenerate the schedule from the Wikidata-derived brand registry:
 

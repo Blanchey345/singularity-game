@@ -14,7 +14,7 @@ The Worker in `worker.js` is the server-side layer for BLASTOFF. It reads the pr
    ```
 5. Upload the generated JSON payload:
    ```bash
-   npx wrangler kv key put --binding=CHALLENGE_DATA prepared_challenges --path=prepared_challenges.json
+   npx wrangler kv key put --binding=CHALLENGE_DATA prepared_challenges --path=prepared_challenges.json --remote
    ```
 6. Deploy the Worker:
    ```bash

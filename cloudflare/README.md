@@ -15,14 +15,17 @@ existing `index.html` and `brands_data.js` are not changed by this setup.
 
 ## Important current limitation
 
-The repository currently has 55 question prompts in `daily_questions.json`.
-A 90-day run needs 630 distinct prompts (90 x 7). The preparation script
-intentionally refuses to publish until the question catalog has at least 630
+The repository has 55 candidate prompts in `daily_questions.json`, but the
+current live frontend builds its active prompt list directly inside
+`index.html`; it does not currently load that JSON file. The staged preparation
+script uses `daily_questions.json` as the future question-catalog input and
+intentionally refuses to publish until that catalog contains at least 630
 distinct, usable prompts with eight or more verified answers each. The current
 brand database is not yet a complete model/product database (for example,
 Toyota vehicle models and Apple device models need their own discovery queries).
-Do not enable the daily workflow or switch the live frontend until that content
-gap is resolved and a full 90-day preparation passes.
+Do not enable the daily workflow or switch the live frontend until the question
+catalog has been expanded, checked against the live game's intended categories,
+and a full 90-day preparation passes.
 
 ## Create Cloudflare resources
 

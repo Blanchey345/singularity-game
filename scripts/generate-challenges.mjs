@@ -31,7 +31,14 @@ function extractArrayAfter(source, marker) {
 }
 
 const categoryLiteral = extractArrayAfter(indexHtml, "const categories =");
-const categories = vm.runInNewContext("(" + categoryLiteral + ")");
+const baseCategories = vm.runInNewContext("(" + categoryLiteral + ")");
+const extraCategoryLiteral = extractArrayAfter(indexHtml, "const extraCategories =");
+const extraCategories = vm.runInNewContext("(" + extraCategoryLiteral + ")");
+const categoriesByKey = new Map();
+for (const category of [...baseCategories, ...extraCategories]) {
+  if (category?.baseKey) categoriesByKey.set(category.baseKey, category);
+}
+const categories = [...categoriesByKey.values()];
 const dbStart = brandsSource.indexOf("=") + 1;
 const dbEnd = brandsSource.indexOf(";\nwindow.SINGULARITY_QUESTIONS");
 if (dbStart < 1 || dbEnd < 0) throw new Error("Could not parse brands_data.js.");
@@ -114,15 +121,15 @@ for (const [date, ids] of Object.entries(days)) {
     }
   }
 }
-if (Object.keys(days).length !== 90 || Object.keys(questions).length !== 630 || usedPrompts.size !== 630) {
-  throw new Error("Expected 90 days and 630 unique prompts.");
+if (Object.keys(days).length !== 90 || Object.keys(questions).length !== 630 || usedPrompts.size < 7) {
+  throw new Error("Expected 90 days, 630 scheduled question instances, and at least seven validated question templates.");
 }
 
 const output = {
   version:3, generatedAt:new Date().toISOString(), startDate, days, questions, answerBanks,
   metadata:{
     dayCount:90, questionCount:630, roundsPerDay:7, categoryCount:usableCategories.length, uniqueQuestionTemplates:usableCategories.length,
-    source:"Curated brand lists embedded in index.html; Wikidata is used only to add aliases to exact canonical matches.",
+    source:"Curated category lists and Wikidata-derived exact-match aliases from the repository's existing brand registry. This build does not claim complete historical product/model coverage.",
     scoring:"Fixed 10/25/50/75/100 point tiers copied from the curated source lists.",
     validation:"Seven distinct categories per day; 630 scheduled question instances; prompt templates repeat across days; each question has a precomputed answer bank."
   }

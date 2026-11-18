@@ -37,7 +37,7 @@ for (const template of templates) {
     if (!name || !key || seen.has(key)) continue;
     seen.add(key);
     const popularity = Number(brand.popularity || 0);
-    const points = popularity >= 75 ? 10 : popularity >= 45 ? 25 : popularity >= 20 ? 50 : popularity >= 10 ? 75 : 100;
+    const points = brand.curated ? popularity : popularity >= 75 ? 10 : popularity >= 45 ? 25 : popularity >= 20 ? 50 : popularity >= 10 ? 75 : 100;
     answers.push({ name, aliases: [...new Set([...(brand.keys || []), name].map(x => String(x).trim()).filter(Boolean))], points, tier: ({10:"Space Dust",25:"Satellite",50:"Nebula",75:"Supernova",100:"Singularity"})[points] });
   }
   answers.sort((a,b) => a.points - b.points || a.name.localeCompare(b.name));

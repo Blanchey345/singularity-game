@@ -1,1 +1,3 @@
-# singularity-game
+# BLASTOFF
+
+A space-themed brand trivia game.

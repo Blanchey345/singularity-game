@@ -21,6 +21,8 @@ The Worker in `worker.js` is the server-side layer for BLASTOFF. It reads the pr
    npx wrangler deploy
    ```
 
+After deployment, copy the Worker URL into `window.BLASTOFF_API_BASE` in `config.js`. The game will then fetch prompts and validate answers through the Worker, and request answer banks only when the recap is opened. Keep the URL blank for the local/static fallback.
+
 The API endpoints are:
 
 - `GET /api/daily` — returns today's seven prompts without the answer banks.

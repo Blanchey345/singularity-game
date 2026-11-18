@@ -48,7 +48,7 @@ for (const date of dates) {
     if (merged.size < 10) throw new Error(id + " has fewer than ten accepted answers.");
   }
   templateHistory.push(...todaysTemplates);
-  while (templateHistory.length > 35) templateHistory.shift();
+  while (templateHistory.length > 28) templateHistory.shift();
 }
 if (usedQuestionIds.size !== 630) throw new Error("Not all 630 question instances are scheduled.");
 
@@ -77,4 +77,4 @@ for (const points of [10,25,50,75,100]) {
   if (!index.includes("points:" + points + ", name:")) throw new Error("Rarity tier " + points + " is missing its point value.");
 }
 console.log("Validated 90 days, 630 question instances, " + Object.keys(payload.answerBanks).length +
-  " answer banks, typo handling, rarity tiers, and the five-day question rotation.");
+  " answer banks, typo handling, rarity tiers, and the four-day question rotation.");

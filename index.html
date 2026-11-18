@@ -1199,11 +1199,11 @@ const BLASTOFF_API_BASE = String(window.BLASTOFF_API_BASE || "").replace(/\/+$/,
 
 // 5 Cosmic Rarity Tiers: 10, 25, 50, 75, 100
 const COSMIC_TIERS = {
-  10:  { name: "Space Dust",  icon: "✨", desc: "Household pick — barely cleared the launchpad." },
-  25:  { name: "Satellite",   icon: "🛰️", desc: "Solid mainstream pull — steady orbital burn." },
-  50:  { name: "Nebula",      icon: "🌌", desc: "Uncommon pull — beating the average pilot." },
-  75:  { name: "Supernova",   icon: "💥", desc: "Deep cut! Massive thruster ignition." },
-  100: { name: "Singularity", icon: "🕳️", desc: "ULTRA-RARE SINGULARITY! Maximum deep-space thrust." }
+  10:  { points:10, name: "Space Dust",  icon: "✨", desc: "Household pick — barely cleared the launchpad." },
+  25:  { points:25, name: "Satellite",   icon: "🛰️", desc: "Solid mainstream pull — steady orbital burn." },
+  50:  { points:50, name: "Nebula",      icon: "🌌", desc: "Uncommon pull — beating the average pilot." },
+  75:  { points:75, name: "Supernova",   icon: "💥", desc: "Deep cut! Massive thruster ignition." },
+  100: { points:100, name: "Singularity", icon: "🕳️", desc: "ULTRA-RARE SINGULARITY! Maximum deep-space thrust." }
 };
 
 function snapToCosmicTier(rawPts){
@@ -2066,13 +2066,21 @@ function updateTimer(){
 }
 
 function editDistance(a, b){
-  const dp = Array.from({length: a.length + 1}, (_, i) => [i]);
+  // Damerau-Levenshtein style distance also treats an adjacent letter swap as one typo.
+  const dp = Array.from({length:a.length + 1}, () => Array(b.length + 1).fill(0));
+  for(let i = 0; i <= a.length; i++) dp[i][0] = i;
   for(let j = 0; j <= b.length; j++) dp[0][j] = j;
   for(let i = 1; i <= a.length; i++){
     for(let j = 1; j <= b.length; j++){
-      dp[i][j] = a[i-1] === b[j-1]
-        ? dp[i-1][j-1]
-        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+      const cost = a[i-1] === b[j-1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i-1][j] + 1,
+        dp[i][j-1] + 1,
+        dp[i-1][j-1] + cost
+      );
+      if(i > 1 && j > 1 && a[i-1] === b[j-2] && a[i-2] === b[j-1]){
+        dp[i][j] = Math.min(dp[i][j], dp[i-2][j-2] + 1);
+      }
     }
   }
   return dp[a.length][b.length];
@@ -2081,8 +2089,8 @@ function editDistance(a, b){
 function isCloseMatch(inputNorm, brandNorm){
   const maxLen = Math.max(inputNorm.length, brandNorm.length);
   if(maxLen < 4 || inputNorm.length < 3) return 0;
-  // Be generous with realistic typos, but scale the allowance with name length.
-  const maxEdits = maxLen >= 11 ? 3 : maxLen >= 7 ? 2 : 1;
+  // Allow one typo in shorter names and up to two in longer names; ambiguous ties are rejected.
+  const maxEdits = maxLen >= 8 ? 2 : 1;
   const dist = editDistance(inputNorm, brandNorm);
   return dist > 0 && dist <= maxEdits ? dist : 0;
 }

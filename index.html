@@ -2009,9 +2009,10 @@ function editDistance(a, b){
 function isCloseMatch(inputNorm, brandNorm){
   const maxLen = Math.max(inputNorm.length, brandNorm.length);
   if(maxLen < 4 || inputNorm.length < 3) return 0;
-  const maxEdits = maxLen >= 7 ? 2 : 1;
+  // Be generous with realistic typos, but scale the allowance with name length.
+  const maxEdits = maxLen >= 11 ? 3 : maxLen >= 7 ? 2 : 1;
   const dist = editDistance(inputNorm, brandNorm);
-  return dist <= maxEdits ? dist : 0;
+  return dist > 0 && dist <= maxEdits ? dist : 0;
 }
 
 function lookupLocal(c, answer){
@@ -2019,23 +2020,47 @@ function lookupLocal(c, answer){
   if(!target) return null;
   target = ALIASES[target] || target;
 
-  for(const [name, rawPts] of Object.entries(c.brands)){
-    let key = normalize(name);
-    key = ALIASES[key] || key;
-    if(key === target){
-      return {exact:true, name, points: snapToCosmicTier(rawPts), source:"local"};
+  const entries = Object.entries(c.brands);
+  const exactIn = list => {
+    for(const [name, rawPts] of list){
+      const key = ALIASES[normalize(name)] || normalize(name);
+      if(key === target) return {exact:true, name, points:snapToCosmicTier(rawPts), source:"local"};
+    }
+    return null;
+  };
+  const direct = exactIn(entries);
+  if(direct) return direct;
+
+  // Some daily prompts are generated from a narrower data subset. Keep common
+  // restaurant answers valid whenever the wording clearly asks for a food chain.
+  if(/fast.?food|restaurant chain|food chain|quick.?service|convenience/i.test(c.q || "")){
+    const food = categories.find(cat => cat.baseKey === "fast_food");
+    if(food && food !== c){
+      const fallback = exactIn(Object.entries(food.brands));
+      if(fallback) return fallback;
     }
   }
 
-  let best = null;
-  for(const [name, rawPts] of Object.entries(c.brands)){
-    const key = normalize(name);
+  let candidates = [];
+  for(const [name, rawPts] of entries){
+    const key = ALIASES[normalize(name)] || normalize(name);
     const dist = isCloseMatch(target, key);
-    if(dist > 0 && (!best || dist < best.dist)){
-      best = {exact:false, name, points: snapToCosmicTier(rawPts), dist, source:"local"};
+    if(dist > 0) candidates.push({exact:false,name,points:snapToCosmicTier(rawPts),dist,source:"local"});
+  }
+  if(!candidates.length && /fast.?food|restaurant chain|food chain|quick.?service|convenience/i.test(c.q || "")){
+    const food = categories.find(cat => cat.baseKey === "fast_food");
+    if(food && food !== c){
+      for(const [name, rawPts] of Object.entries(food.brands)){
+        const key = ALIASES[normalize(name)] || normalize(name);
+        const dist = isCloseMatch(target,key);
+        if(dist > 0) candidates.push({exact:false,name,points:snapToCosmicTier(rawPts),dist,source:"local"});
+      }
     }
   }
-  return best;
+  candidates.sort((a,b)=>a.dist-b.dist);
+  // Only auto-correct when the best candidate is clearly closer than the runner-up.
+  if(candidates.length > 1 && candidates[0].dist === candidates[1].dist) return null;
+  return candidates[0] || null;
 }
 
 function lookupOtherLocalCategory(currentCategory, answer){
@@ -2469,7 +2494,8 @@ async function submitAnswer(raw=""){
     return;
   }
 
-  if(!found.exact && (found.source === "local" || found.source === "registry") && found.dist === 1 && normalize(answer).length >= 7){
+  if(!found.exact && (found.source === "local" || found.source === "registry") &&
+     found.dist <= 2 && normalize(answer).length >= 7){
     found.exact = true;
   }
 

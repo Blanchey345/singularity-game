@@ -1,0 +1,2 @@
+# Generated deployment payload; upload this to Cloudflare KV instead of committing it.
+prepared_challenges.json

@@ -373,6 +373,7 @@ body.in-game .shell{
   box-shadow:0 9px 28px rgba(74, 222, 128, 0.34);
 }
 .secondary{background:rgba(18, 25, 56, 0.82);color:var(--text);border:1px solid var(--line)}
+.practicebtn{width:100%;margin-top:10px}.practice-note{margin-top:7px;text-align:center;color:var(--muted);font-size:11px}
 .sharebtn{
   background:linear-gradient(100deg, #4ade80, #38bdf8);
   color:#041019;
@@ -875,7 +876,7 @@ body.animating.timeout-burn .flight-callout { color:#cbd5e1; text-shadow:0 0 16p
   22% { transform:translate(-50%,-50%) scale(1.65); }
   48% { transform:translate(-50%,-50%) scale(1.9); }
   76% { transform:translate(-50%,-50%) scale(1.35); }
-  100% { transform:translate(-50%,-50%) scale(1.12); }
+  100% { transform:translate(-50%,-50%) scale(1.28); }
 }
 body.animating .space-stage:before { transform-origin:50% 48%; animation:spaceCameraMove var(--burn-duration,3s) cubic-bezier(.18,.72,.24,1) both; }
 body.animating .space-stage:after { animation:gridRush var(--burn-duration,3s) ease-in both; }
@@ -912,6 +913,18 @@ body.animating.rarity-75 .warp-field,body.animating.rarity-100 .warp-field{backg
 body.animating.rarity-100 .flight-callout{color:#fff2b2;text-shadow:0 0 18px #fbbf24,0 0 46px #a855f7,0 3px 20px #000}
 @media (prefers-reduced-motion:reduce){.ship-wrap.flight-burn,.warp-field,.impact-ring,.singularity-flash,.planet-obj,.space-stage:before,.space-stage:after{animation:none!important}.flight-callout{animation:none!important}}
 
+
+.answer-review { display:block; }
+.answer-review > summary { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; cursor:pointer; list-style:none; }
+.answer-review > summary::-webkit-details-marker { display:none; }
+.answer-review > summary:after { content:"＋ VIEW ANSWERS"; grid-column:1 / -1; color:var(--cyan); font-size:10px; font-weight:800; letter-spacing:.08em; }
+.answer-review[open] > summary:after { content:"− HIDE ANSWERS"; }
+.answerbank { max-height:360px; overflow:auto; margin-top:12px; padding:8px 10px; border:1px solid rgba(148,163,184,.18); border-radius:12px; background:rgba(2,6,23,.28); }
+.answerbank-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:7px 2px; border-bottom:1px solid rgba(148,163,184,.10); font-size:12px; }
+.answerbank-row:last-child { border-bottom:0; }
+.answerbank-row small { color:var(--muted,#94a3b8); white-space:nowrap; }
+.answerbank-row.mine { color:#67e8f9; font-weight:800; }
+.you-tag { margin-left:5px; font-size:9px; letter-spacing:.05em; color:#67e8f9; }
 </style>
 </head>
 <body>
@@ -1077,6 +1090,8 @@ body.animating.rarity-100 .flight-callout{color:#fff2b2;text-shadow:0 0 18px #fb
       </div>
 
       <button class="btn primary" id="startBtn">LAUNCH DAILY MISSION&nbsp; 🚀</button>
+      <button class="btn secondary practicebtn" id="practiceBtn">FREE FLIGHT PRACTICE&nbsp; ✦</button>
+      <div class="practice-note">Replay with a fresh set anytime. Your daily score stays separate.</div>
       <div class="daily-status" id="dailyStatus">
         <span>✓ Today’s official flight is locked in: <strong id="dailyLockedScore">0 MI</strong></span>
         <span>New prompts at midnight</span>
@@ -1179,16 +1194,19 @@ body.animating.rarity-100 .flight-callout{color:#fff2b2;text-shadow:0 0 18px #fb
 <div class="toast" id="toast"></div>
 
 <script src="brands_data.js"></script>
+<script src="config.js"></script>
+<script>if(!window.BLASTOFF_API_BASE){document.write('<script src="prepared_challenges.js"><\/script>');}</script>
 <script>
 const ROUND_SECONDS = 25, TOTAL_ROUNDS = 7, MILES_PER_POINT = 1000;
+const BLASTOFF_API_BASE = String(window.BLASTOFF_API_BASE || "").replace(/\/+$/, "");
 
 // 5 Cosmic Rarity Tiers: 10, 25, 50, 75, 100
 const COSMIC_TIERS = {
-  10:  { name: "Space Dust",  icon: "✨", desc: "Household pick — barely cleared the launchpad." },
-  25:  { name: "Satellite",   icon: "🛰️", desc: "Solid mainstream pull — steady orbital burn." },
-  50:  { name: "Nebula",      icon: "🌌", desc: "Uncommon pull — beating the average pilot." },
-  75:  { name: "Supernova",   icon: "💥", desc: "Deep cut! Massive thruster ignition." },
-  100: { name: "Singularity", icon: "🕳️", desc: "ULTRA-RARE SINGULARITY! Maximum deep-space thrust." }
+  10:  { points:10, name: "Space Dust",  icon: "✨", desc: "Household pick — barely cleared the launchpad." },
+  25:  { points:25, name: "Satellite",   icon: "🛰️", desc: "Solid mainstream pull — steady orbital burn." },
+  50:  { points:50, name: "Nebula",      icon: "🌌", desc: "Uncommon pull — beating the average pilot." },
+  75:  { points:75, name: "Supernova",   icon: "💥", desc: "Deep cut! Massive thruster ignition." },
+  100: { points:100, name: "Singularity", icon: "🕳️", desc: "ULTRA-RARE SINGULARITY! Maximum deep-space thrust." }
 };
 
 function snapToCosmicTier(rawPts){
@@ -1647,30 +1665,71 @@ let pendingSuggestion = null, lastShareText = "";
 // DAILY SEED & LOCALSTORAGE LOCK HELPERS (UPGRADE #3)
 // =========================================================
 function getTodayKey(){
-  // UTC keeps the daily challenge identical for players in every time zone.
-  const d = new Date();
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  // Match Krillion's midnight Eastern reset while keeping one shared date for everyone.
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone:"America/New_York", year:"numeric", month:"2-digit", day:"2-digit"
+  }).formatToParts(new Date());
+  const date = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${date.year}-${date.month}-${date.day}`;
+}
+
+function getPreparedAnswers(question){
+  const banks = window.BLASTOFF_PREPARED?.answerBanks || {};
+  const merged = new Map();
+  for(const category of question.sourceCategories || []){
+    for(const answer of (banks[category]?.answers || [])){
+      const key = normalize(answer.name);
+      if(!key) continue;
+      const current = merged.get(key);
+      if(!current) merged.set(key,{...answer,aliases:[...(answer.aliases || [])]});
+      else{
+        current.points = Math.min(current.points,answer.points);
+        current.aliases = [...new Set([...current.aliases,...(answer.aliases || [])])];
+      }
+    }
+  }
+  return [...merged.values()].map(answer=>({...answer,tier:getTierInfo(answer.points).name}));
 }
 
 function getDailyRoundSet(pool){
-  // Use every distinct prompt once per cycle before starting a new shuffled cycle.
-  const uniquePool = [...new Map(pool.map(item => [item.q, item])).values()];
+  const prepared = window.BLASTOFF_PREPARED;
+  const ids = prepared?.days?.[getTodayKey()];
+  if(Array.isArray(ids) && ids.length === TOTAL_ROUNDS && prepared.questions){
+    const fixedRounds = ids.map(id => prepared.questions[id]).filter(Boolean);
+    if(fixedRounds.length === TOTAL_ROUNDS){
+      return fixedRounds.map(q => { const answers = getPreparedAnswers(q); return {...q,q:q.prompt,answerList:answers,brands:Object.fromEntries(answers.map(a=>[a.name,a.points]))}; });
+    }
+  }
+  const uniquePool = [...new Map(pool.filter(item => item.baseKey !== "sports_teams").map(item => [item.q, item])).values()];
   const cycleDays = Math.floor(uniquePool.length / TOTAL_ROUNDS);
   if(cycleDays < 1) return pickDistinctRounds(uniquePool);
-
   const [year, month, day] = getTodayKey().split("-").map(Number);
   const dayNumber = Math.floor(Date.UTC(year, month - 1, day) / 86400000);
   const cycleNumber = Math.floor(dayNumber / cycleDays);
   const dayInCycle = dayNumber % cycleDays;
-
-  // Each complete cycle contains exactly seven-question daily sets.
-  const deck = shuffle(uniquePool, hashDateString("ballistic-daily-cycle-" + cycleNumber));
+  const deck = shuffle(uniquePool, hashDateString("blastoff-daily-cycle-" + cycleNumber));
   const usableDeck = deck.slice(0, cycleDays * TOTAL_ROUNDS);
   const start = dayInCycle * TOTAL_ROUNDS;
   return usableDeck.slice(start, start + TOTAL_ROUNDS);
+}
+
+function getPracticeRoundSet(pool){
+  const prepared = window.BLASTOFF_PREPARED;
+  if(prepared?.questions && prepared.answerBanks){
+    const unique = [...new Map(Object.values(prepared.questions).map(q => [q.templateId, q])).values()];
+    const selected = shuffle(unique).slice(0, TOTAL_ROUNDS);
+    return selected.map(q => {
+      const answers = getPreparedAnswers(q);
+      return {
+        ...q,
+        id:"practice_" + q.templateId,
+        q:q.prompt,
+        answerList:answers,
+        brands:Object.fromEntries(answers.map(a => [a.name, a.points]))
+      };
+    });
+  }
+  return pickDistinctRounds(pool.filter(item => item.baseKey !== "sports_teams"));
 }
 
 function hashDateString(str){
@@ -1713,7 +1772,8 @@ function syncHomeDailyState(){
   }
 
   if($("poolBadge")){
-    $("poolBadge").textContent = `✦ ${categories.length} ACTIVE PROMPTS`;
+    const promptCount = window.BLASTOFF_PREPARED ? Object.keys(window.BLASTOFF_PREPARED.questions).length : categories.length;
+    $("poolBadge").textContent = `✦ ${promptCount} ACTIVE PROMPTS`;
   }
 }
 
@@ -1776,8 +1836,8 @@ function buildBellCurveHTML({ value, mean, std, context, uid }){
   return `
     <div class="curve-box">
       <div class="curve-head">
-        <span class="curve-rank">TOP ${label}%</span>
-        <span class="curve-desc">${value > 0 ? `Outperformed ${beaten}% of pilots · ${context}` : `0 mi thrust · ${context}`}</span>
+        <span class="curve-rank">EST. TOP ${label}%</span>
+        <span class="curve-desc">${value > 0 ? `Estimated score position · ${context}` : `No valid burns · ${context}`}</span>
       </div>
       <svg class="curve-svg" viewBox="0 0 ${W} 94" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Normal curve showing Top ${label}%">
         <defs>
@@ -1937,23 +1997,44 @@ function triggerShake(){
   wrap.classList.add("shake");
 }
 
-function startGame(which){
+async function fetchRemoteDailyRounds(){
+  const response = await fetch(BLASTOFF_API_BASE + "/api/daily", {cache:"no-store"});
+  if(!response.ok) throw new Error("Daily challenge could not be loaded.");
+  const data = await response.json();
+  rounds = data.rounds.map(q => ({...q,q:q.prompt,answerList:null,brands:{}}));
+}
+async function fetchRemoteAnswerReview(){
+  const ids = rounds.map(r => r.id).join(",");
+  const response = await fetch(BLASTOFF_API_BASE + "/api/review?ids=" + encodeURIComponent(ids), {cache:"no-store"});
+  if(!response.ok) throw new Error("Answer review could not be loaded.");
+  const data = await response.json();
+  const byId = new Map(data.questions.map(q => [q.id,q]));
+  rounds = rounds.map(round => ({...round,answerList:byId.get(round.id)?.answers || []}));
+}
+async function startGame(which){
+  mode = which;
   if(which === "daily"){
     const saved = getSavedDailyRun();
-    if(saved){
-      mode = "daily";
-      totalMiles = saved.totalMiles;
-      answers = saved.answers;
-      renderResultsScreen(true);
-      toast("Showing today's locked-in Daily Mission!");
+    try{
+      if(BLASTOFF_API_BASE) await fetchRemoteDailyRounds();
+      else rounds = getDailyRoundSet(categories);
+      if(saved){
+        totalMiles = saved.totalMiles;
+        answers = saved.answers;
+        if(BLASTOFF_API_BASE) await fetchRemoteAnswerReview();
+        renderResultsScreen(true);
+        toast("Showing the locked-in daily mission.");
+        return;
+      }
+    }catch(error){
+      toast(error.message || "Unable to load the daily mission.");
       return;
     }
+  }else if(which === "practice"){
+    rounds = getPracticeRoundSet(categories);
+  }else{
+    rounds = pickDistinctRounds(categories);
   }
-
-  mode = which;
-  rounds = which === "daily"
-    ? getDailyRoundSet(categories)
-    : pickDistinctRounds(categories);
   idx = 0;
   totalMiles = 0;
   answers = [];
@@ -1961,7 +2042,6 @@ function startGame(which){
   updateTelemetry(false);
   renderRound();
 }
-
 function renderRound(){
   roundToken++;
   locked = false;
@@ -2010,13 +2090,21 @@ function updateTimer(){
 }
 
 function editDistance(a, b){
-  const dp = Array.from({length: a.length + 1}, (_, i) => [i]);
+  // Damerau-Levenshtein style distance also treats an adjacent letter swap as one typo.
+  const dp = Array.from({length:a.length + 1}, () => Array(b.length + 1).fill(0));
+  for(let i = 0; i <= a.length; i++) dp[i][0] = i;
   for(let j = 0; j <= b.length; j++) dp[0][j] = j;
   for(let i = 1; i <= a.length; i++){
     for(let j = 1; j <= b.length; j++){
-      dp[i][j] = a[i-1] === b[j-1]
-        ? dp[i-1][j-1]
-        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+      const cost = a[i-1] === b[j-1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i-1][j] + 1,
+        dp[i][j-1] + 1,
+        dp[i-1][j-1] + cost
+      );
+      if(i > 1 && j > 1 && a[i-1] === b[j-2] && a[i-2] === b[j-1]){
+        dp[i][j] = Math.min(dp[i][j], dp[i-2][j-2] + 1);
+      }
     }
   }
   return dp[a.length][b.length];
@@ -2025,283 +2113,49 @@ function editDistance(a, b){
 function isCloseMatch(inputNorm, brandNorm){
   const maxLen = Math.max(inputNorm.length, brandNorm.length);
   if(maxLen < 4 || inputNorm.length < 3) return 0;
-  // Be generous with realistic typos, but scale the allowance with name length.
-  const maxEdits = maxLen >= 11 ? 3 : maxLen >= 7 ? 2 : 1;
+  // Allow one typo in shorter names and up to two in longer names; ambiguous ties are rejected.
+  const maxEdits = maxLen >= 8 ? 2 : 1;
   const dist = editDistance(inputNorm, brandNorm);
   return dist > 0 && dist <= maxEdits ? dist : 0;
 }
 
 function lookupLocal(c, answer){
-  let target = normalize(answer);
+  const target = normalize(answer);
   if(!target) return null;
-  target = ALIASES[target] || target;
-
-  const entries = Object.entries(c.brands);
-  const exactIn = list => {
-    for(const [name, rawPts] of list){
-      const key = ALIASES[normalize(name)] || normalize(name);
-      if(key === target) return {exact:true, name, points:snapToCosmicTier(rawPts), source:"local"};
+  if(Array.isArray(c.answerList)){
+    let exact = null; const candidates = [];
+    for(const item of c.answerList){
+      const names = [item.name, ...(item.aliases || [])];
+      const normalizedNames = [...new Set(names.map(normalize).filter(Boolean))];
+      if(normalizedNames.some(n => n === target || (ALIASES[n] || n) === (ALIASES[target] || target))){
+        exact = {exact:true,name:item.name,points:item.points,source:"prepared"}; break;
+      }
+      let bestDist = Infinity;
+      for(const n of normalizedNames){
+        const dist = isCloseMatch(ALIASES[target] || target, ALIASES[n] || n);
+        if(dist && dist < bestDist) bestDist = dist;
+      }
+      if(bestDist < Infinity) candidates.push({exact:false,name:item.name,points:item.points,dist:bestDist,source:"prepared"});
     }
-    return null;
-  };
-  const direct = exactIn(entries);
-  if(direct) return direct;
-
-  // Some daily prompts are generated from a narrower data subset. Keep common
-  // restaurant answers valid whenever the wording clearly asks for a food chain.
-  if(/fast.?food|restaurant chain|food chain|quick.?service|convenience/i.test(c.q || "")){
-    const food = categories.find(cat => cat.baseKey === "fast_food");
-    if(food && food !== c){
-      const fallback = exactIn(Object.entries(food.brands));
-      if(fallback) return fallback;
-    }
+    if(exact) return exact;
+    candidates.sort((a,b)=>a.dist-b.dist);
+    if(!candidates.length || (candidates.length>1 && candidates[0].dist===candidates[1].dist)) return null;
+    return candidates[0];
   }
-
-  let candidates = [];
+  const canonicalTarget = ALIASES[target] || target;
+  const entries = Object.entries(c.brands || {});
   for(const [name, rawPts] of entries){
     const key = ALIASES[normalize(name)] || normalize(name);
-    const dist = isCloseMatch(target, key);
-    if(dist > 0) candidates.push({exact:false,name,points:snapToCosmicTier(rawPts),dist,source:"local"});
+    if(key === canonicalTarget) return {exact:true,name,points:snapToCosmicTier(rawPts),source:"local"};
   }
-  if(!candidates.length && /fast.?food|restaurant chain|food chain|quick.?service|convenience/i.test(c.q || "")){
-    const food = categories.find(cat => cat.baseKey === "fast_food");
-    if(food && food !== c){
-      for(const [name, rawPts] of Object.entries(food.brands)){
-        const key = ALIASES[normalize(name)] || normalize(name);
-        const dist = isCloseMatch(target,key);
-        if(dist > 0) candidates.push({exact:false,name,points:snapToCosmicTier(rawPts),dist,source:"local"});
-      }
-    }
+  const candidates=[];
+  for(const [name,rawPts] of entries){
+    const key=ALIASES[normalize(name)]||normalize(name),dist=isCloseMatch(canonicalTarget,key);
+    if(dist>0)candidates.push({exact:false,name,points:snapToCosmicTier(rawPts),dist,source:"local"});
   }
   candidates.sort((a,b)=>a.dist-b.dist);
-  // Only auto-correct when the best candidate is clearly closer than the runner-up.
-  if(candidates.length > 1 && candidates[0].dist === candidates[1].dist) return null;
-  return candidates[0] || null;
-}
-
-function lookupOtherLocalCategory(currentCategory, answer){
-  let target = normalize(answer);
-  if(!target) return null;
-  target = ALIASES[target] || target;
-
-  for(const cat of categories){
-    if(cat.q === currentCategory.q) continue;
-    for(const name of Object.keys(cat.brands)){
-      let key = normalize(name);
-      key = ALIASES[key] || key;
-      if(key === target) return name;
-    }
-  }
-  return null;
-}
-
-function fetchWithTimeout(url, ms=3200){
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), ms);
-  return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(id));
-}
-
-async function queryClearbitDirectory(rawAnswer){
-  try{
-    const url = `https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(rawAnswer.trim())}`;
-    const res = await fetchWithTimeout(url, 2800);
-    if(!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  }catch{
-    return [];
-  }
-}
-
-async function queryDuckDuckGo(query){
-  try{
-    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-    const res = await fetchWithTimeout(url, 3000);
-    if(!res.ok) return null;
-    return await res.json();
-  }catch{
-    return null;
-  }
-}
-
-async function queryWikidataEntities(rawAnswer){
-  try{
-    const searchUrl = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(rawAnswer.trim())}&language=en&limit=12&format=json&origin=*`;
-    const searchRes = await fetchWithTimeout(searchUrl, 3200);
-    const searchData = await searchRes.json();
-    const hits = searchData?.search || [];
-    if(!hits.length) return [];
-
-    const ids = hits.map(h => h.id).join("|");
-    const entUrl = `https://www.wikidata.org/w/api.php?action=wbgetentities&ids=${ids}&props=labels|aliases|descriptions|claims|sitelinks&languages=en&format=json&origin=*`;
-    const entRes = await fetchWithTimeout(entUrl, 3200);
-    const entData = await entRes.json();
-    const entities = entData?.entities || {};
-    return hits.map(h => entities[h.id]).filter(Boolean);
-  }catch{
-    return [];
-  }
-}
-
-async function fetchWikiSummary(title){
-  if(!title) return "";
-  try{
-    const url = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&exsentences=4&redirects=1&titles=${encodeURIComponent(title)}&format=json&origin=*`;
-    const res = await fetchWithTimeout(url, 2800);
-    const data = await res.json();
-    const pages = data?.query?.pages || {};
-    const page = Object.values(pages)[0];
-    return (page?.extract || "").toLowerCase();
-  }catch{
-    return "";
-  }
-}
-
-async function verifyBrandOnline(c, rawAnswer){
-  const normInput = ALIASES[normalize(rawAnswer)] || normalize(rawAnswer);
-  if(!normInput || normInput.length < 2) return null;
-
-  const cacheKey = `${c.q}::${normInput}`;
-  if(onlineCache.has(cacheKey)) return onlineCache.get(cacheKey);
-
-  const otherLocal = lookupOtherLocalCategory(c, rawAnswer);
-  if(otherLocal){
-    const wrongCat = { wrongCategory: true, name: otherLocal };
-    onlineCache.set(cacheKey, wrongCat);
-    return wrongCat;
-  }
-
-  let closeCandidate = null;
-  let confirmedWrongCategoryName = null;
-
-  const [clearbitHits, wdEntities, ddgData] = await Promise.all([
-    queryClearbitDirectory(rawAnswer),
-    queryWikidataEntities(rawAnswer),
-    queryDuckDuckGo(rawAnswer.trim())
-  ]);
-
-  const matchName = candidateName => {
-    const normCand = ALIASES[normalize(candidateName)] || normalize(candidateName);
-    if(!normCand) return { match: false, exact: false, dist: Infinity };
-    if(normCand === normInput) return { match: true, exact: true, dist: 0 };
-    const stripped = normCand.replace(/(inc|llc|ltd|corp|corporation|company|co|group|brand|brands|official|usa|global)$/g, "");
-    if(stripped && stripped === normInput) return { match: true, exact: true, dist: 0 };
-    const d = isCloseMatch(normInput, normCand);
-    if(d > 0) return { match: true, exact: false, dist: d };
-    return { match: false, exact: false, dist: Infinity };
-  };
-
-  for(const ent of wdEntities){
-    const label = ent.labels?.en?.value || "";
-    const aliasList = (ent.aliases?.en || []).map(a => a.value);
-    const allNames = [label, ...aliasList].filter(Boolean);
-
-    let bestNameMatch = { match: false, exact: false, dist: Infinity };
-    for(const n of allNames){
-      const m = matchName(n);
-      if(m.match && (!bestNameMatch.match || m.exact || m.dist < bestNameMatch.dist)){
-        bestNameMatch = m;
-        if(m.exact) break;
-      }
-    }
-    if(!bestNameMatch.match) continue;
-
-    const desc = (ent.descriptions?.en?.value || "").toLowerCase();
-    const p31Claims = ent.claims?.P31 || [];
-    const hasBrandQid = p31Claims.some(cl => BRAND_QIDS.has(cl?.mainsnak?.datavalue?.value?.id));
-    const hasOfficialSite = Boolean(ent.claims?.P856?.length);
-    const hasBrandWord = ENTITY_WORDS.some(w => desc.includes(w));
-
-    if(!hasBrandQid && !hasBrandWord && !hasOfficialSite) continue;
-
-    let textToCheck = desc;
-    let matchesCategory = c.keywords.some(kw => textToCheck.includes(kw));
-
-    if(!matchesCategory && ddgData?.AbstractText){
-      textToCheck += " " + ddgData.AbstractText.toLowerCase();
-      matchesCategory = c.keywords.some(kw => textToCheck.includes(kw));
-    }
-
-    if(!matchesCategory){
-      const enWikiTitle = ent.sitelinks?.enwiki?.title || label;
-      const summary = await fetchWikiSummary(enWikiTitle);
-      textToCheck += " " + summary;
-      matchesCategory = c.keywords.some(kw => textToCheck.includes(kw));
-    }
-
-    if(matchesCategory && c.countryFilter){
-      const countryNeedle = c.countryFilter.toLowerCase();
-      if(!textToCheck.includes(countryNeedle)){
-        confirmedWrongCategoryName = label || rawAnswer.trim();
-        continue;
-      }
-    }
-
-    const sitelinkCount = Object.keys(ent.sitelinks || {}).length;
-    if(matchesCategory){
-      const result = {
-        exact: bestNameMatch.exact,
-        name: label || rawAnswer.trim(),
-        points: scoreFromSitelinks(sitelinkCount),
-        source: "registry",
-        dist: bestNameMatch.dist
-      };
-      if(result.exact){
-        onlineCache.set(cacheKey, result);
-        return result;
-      } else if(!closeCandidate || result.dist < closeCandidate.dist){
-        closeCandidate = result;
-      }
-    } else if(bestNameMatch.exact && (hasBrandQid || hasBrandWord)){
-      confirmedWrongCategoryName = label || rawAnswer.trim();
-    }
-  }
-
-  for(const cb of clearbitHits){
-    if(!cb?.name) continue;
-    const m = matchName(cb.name);
-    if(!m.match) continue;
-
-    const catHint = c.keywords[0];
-    const contextDdg = await queryDuckDuckGo(`${cb.name} ${catHint}`);
-    const contextText = `${cb.name} ${cb.domain || ""} ${ddgData?.AbstractText || ""} ${contextDdg?.AbstractText || ""} ${contextDdg?.Heading || ""}`.toLowerCase();
-    let matchesCategory = c.keywords.some(kw => contextText.includes(kw));
-    if(matchesCategory && c.countryFilter && !contextText.includes(c.countryFilter.toLowerCase())){
-      matchesCategory = false;
-    }
-
-    if(matchesCategory){
-      const result = {
-        exact: m.exact,
-        name: cb.name,
-        points: 50,
-        source: "directory",
-        dist: m.dist
-      };
-      if(result.exact){
-        onlineCache.set(cacheKey, result);
-        return result;
-      } else if(!closeCandidate || result.dist < closeCandidate.dist){
-        closeCandidate = result;
-      }
-    } else if(m.exact && !confirmedWrongCategoryName){
-      confirmedWrongCategoryName = cb.name;
-    }
-  }
-
-  if(closeCandidate){
-    onlineCache.set(cacheKey, closeCandidate);
-    return closeCandidate;
-  }
-
-  if(confirmedWrongCategoryName){
-    const wrongCat = { wrongCategory: true, name: confirmedWrongCategoryName };
-    onlineCache.set(cacheKey, wrongCat);
-    return wrongCat;
-  }
-
-  onlineCache.set(cacheKey, null);
-  return null;
+  if(candidates.length>1&&candidates[0].dist===candidates[1].dist)return null;
+  return candidates[0]||null;
 }
 
 function rejectAnswer(badText, customTitle=null, customSub=null){
@@ -2357,6 +2211,7 @@ function handleTimeout(){
   const topInfo = getTopPercent(0, 35, 22);
   answers.push({
     question: c.q,
+    questionId: c.id,
     answer: "No burn (aborted / timed out)",
     brand: null,
     points: 0,
@@ -2400,8 +2255,8 @@ function animateRocketFailure(){
 }
 
 function animateRocketBurn(found, tier, milesGained){
-  // Each rarity gets a longer flight; even the lowest tier lasts 3 seconds.
-  const durations = {10:3000, 25:4000, 50:5200, 75:6600, 100:8000};
+  // Each rarity gets a longer flight, from 4.5 seconds to 12 seconds.
+  const durations = {10:4500, 25:6000, 50:7500, 75:9500, 100:12000};
   const duration = durations[tier.points] || 3000;
   const rocket = $("rocketMarker");
   const callout = $("flightCallout");
@@ -2446,6 +2301,7 @@ function confirmValidBrand(found){
   const topInfo = getTopPercent(pts, 35, 22);
   answers.push({
     question: c.q,
+    questionId: c.id,
     answer: found.name,
     brand: found.name,
     points: pts,
@@ -2455,7 +2311,7 @@ function confirmValidBrand(found){
     topPct: topInfo.label
   });
 
-  const sourceBadge = found.source !== "local" ? " · Verified via brand registry" : "";
+  const sourceBadge = found.source === "prepared" ? " · Prepared answer bank" : found.source !== "local" ? " · Verified via brand registry" : "";
   $("feedback").className = `feedback good ${pts === 100 ? "singularity-hit" : ""}`;
   $("feedback").innerHTML = `
     <div class="feedback-main">
@@ -2474,73 +2330,43 @@ function confirmValidBrand(found){
 
 async function submitAnswer(raw=""){
   if(locked || checking) return;
-
-  if(pendingSuggestion){
-    confirmValidBrand(pendingSuggestion);
-    return;
-  }
-
+  if(pendingSuggestion){confirmValidBrand(pendingSuggestion);return;}
   const answer = raw.trim();
-  if(!answer){
-    triggerShake();
-    toast("Enter a brand to ignite thrusters.");
-    $("answer").focus();
-    return;
-  }
-
+  if(!answer){triggerShake();toast("Enter a brand to ignite thrusters.");$("answer").focus();return;}
   const c = rounds[idx];
-  const token = roundToken;
-
-  let found = lookupLocal(c, answer);
-
-  if(!found || !found.exact){
+  let found = null;
+  if(BLASTOFF_API_BASE){
     checking = true;
     $("answer").disabled = true;
     $("submitBtn").disabled = true;
     $("submitBtn").textContent = "SCANNING...";
     $("inputIcon").textContent = "◌";
-
-    const webMatch = await verifyBrandOnline(c, answer);
-    checking = false;
-
-    if(locked || token !== roundToken) return;
-
-    $("answer").disabled = false;
-    $("submitBtn").disabled = false;
-    $("submitBtn").textContent = "IGNITE ↗";
-    $("inputIcon").textContent = "⌕";
-
-    if(webMatch?.wrongCategory){
-      rejectAnswer(
-        answer,
-        `Doesn't fit this prompt (${webMatch.name}).`,
-        `<b>${escapeHtml(webMatch.name)}</b> didn’t match all criteria for “${escapeHtml(c.q)}”.`
-      );
+    try{
+      const response = await fetch(BLASTOFF_API_BASE + "/api/answer", {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({questionId:c.id,answer})});
+      if(!response.ok) throw new Error("Answer check failed.");
+      const result = await response.json();
+      checking = false;
+      $("answer").disabled = false;
+      $("submitBtn").disabled = false;
+      $("submitBtn").textContent = "IGNITE ↗";
+      $("inputIcon").textContent = "⌕";
+      if(result.accepted) found = {exact:true,name:result.name,points:result.points,source:"prepared"};
+      else if(result.suggestion){showSuggestion({exact:true,name:result.suggestion.name,points:result.suggestion.points,source:"prepared"});return;}
+      else{rejectAnswer(answer);return;}
+    }catch(error){
+      checking = false;
+      $("answer").disabled = false;
+      $("submitBtn").disabled = false;
+      $("submitBtn").textContent = "IGNITE ↗";
+      $("inputIcon").textContent = "⌕";
+      toast("Could not reach the answer checker. Try again.");
       return;
     }
-
-    if(webMatch && webMatch.exact){
-      found = webMatch;
-    } else if(!found && webMatch){
-      found = webMatch;
-    }
+  }else{
+    found = lookupLocal(c, answer);
+    if(!found){rejectAnswer(answer);return;}
+    if(!found.exact){showSuggestion(found);return;}
   }
-
-  if(!found){
-    rejectAnswer(answer);
-    return;
-  }
-
-  if(!found.exact && (found.source === "local" || found.source === "registry") &&
-     found.dist <= 2 && normalize(answer).length >= 7){
-    found.exact = true;
-  }
-
-  if(!found.exact){
-    showSuggestion(found);
-    return;
-  }
-
   confirmValidBrand(found);
 }
 
@@ -2548,7 +2374,7 @@ function buildShareSummary(overallTopLabel){
   const dateLabel = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const modeLabel = mode === "daily" ? `Daily Mission — ${dateLabel}` : `Free Flight — ${dateLabel}`;
   const emojiRow = answers.map(a => a.tierIcon || "⬛").join(" ");
-  return `BLASTOFF 🚀 ${modeLabel}\n${formatMiles(totalMiles)} MILES · TOP ${overallTopLabel}%\n${emojiRow}`;
+  return `BLASTOFF 🚀 ${modeLabel}\n${formatMiles(totalMiles)} MILES · EST. TOP ${overallTopLabel}%\n${emojiRow}`;
 }
 
 async function copyMissionResult(){
@@ -2581,7 +2407,7 @@ function renderResultsScreen(isLockedRecap=false){
   $("finalScore").innerHTML = `${formatMiles(totalMiles)} <span>MILES FROM EARTH</span>`;
   $("resultEyebrow").textContent = mode === "daily"
     ? (isLockedRecap ? "TODAY'S OFFICIAL DAILY FLIGHT · LOCKED IN" : "DAILY MISSION COMPLETE")
-    : "DAILY FLIGHT COMPLETE";
+    : mode === "practice" ? "FREE FLIGHT COMPLETE" : "DAILY FLIGHT COMPLETE";
 
   let title =
     totalMiles >= 450000 ? "Certified Interstellar Ball Knowledge." :
@@ -2616,7 +2442,7 @@ function renderResultsScreen(isLockedRecap=false){
   $("shareStrip").textContent = answers.map(a => a.tierIcon || "⬛").join(" ");
 
   const storyText = bestBurn
-    ? `Your ship blasted out of Earth’s atmosphere and logged <b>${formatMiles(totalMiles)} miles</b> across ${TOTAL_ROUNDS} stages, placing you in the <b>Top ${overallTop.label}%</b> of all pilots. Your strongest ignition was <b>${escapeHtml(bestBurn.brand)}</b> (${bestBurn.tierIcon} <b>${escapeHtml(bestBurn.tierName)}</b>), propelling you <b>+${formatMiles(bestBurn.miles)} miles</b>.`
+    ? `Your ship blasted out of Earth’s atmosphere and logged <b>${formatMiles(totalMiles)} miles</b> across ${TOTAL_ROUNDS} stages, earning an <b>estimated Top ${overallTop.label}% score band</b> in BLASTOFF’s scoring model. Your strongest ignition was <b>${escapeHtml(bestBurn.brand)}</b> (${bestBurn.tierIcon} <b>${escapeHtml(bestBurn.tierName)}</b>), propelling you <b>+${formatMiles(bestBurn.miles)} miles</b>.`
     : `Your ship stayed on the launchpad with <b>0 miles</b> logged across ${TOTAL_ROUNDS} stages. Come back tomorrow for a new Daily Challenge.`;
 
   $("recapStory").innerHTML = storyText;
@@ -2633,9 +2459,9 @@ function renderResultsScreen(isLockedRecap=false){
       <span>Across ${TOTAL_ROUNDS} stages</span>
     </div>
     <div class="rstat">
-      <small>Round Percentile</small>
+      <small>Estimated Score Band</small>
       <strong>TOP ${overallTop.label}%</strong>
-      <span>Beat ${overallTop.beaten}% of launches</span>
+      <span>Based on BLASTOFF’s scoring model</span>
     </div>
   `;
 
@@ -2651,26 +2477,37 @@ function renderResultsScreen(isLockedRecap=false){
     return `<div class="ms ${ok ? "reached" : ""}"><b>${m.icon}</b>${m.name}<br><small>${ok ? "CLEARED" : m.label}</small></div>`;
   }).join("");
 
-  $("breakdown").innerHTML = answers.map((a, i)=>`
-    <div class="answeritem">
-      <div>
-        <b>Stage ${i+1}: ${escapeHtml(a.question)}</b>
-        <small>${escapeHtml(a.answer)}${a.brand ? ` · ${a.tierIcon} ${escapeHtml(a.tierName)} (${a.points} pts)` : ""}</small>
-      </div>
-      <strong>+${formatMiles(a.miles)} MI</strong>
-    </div>`).join("");
+  $("breakdown").innerHTML = answers.map((a, i)=>{
+    const round = rounds.find(r => r.id === a.questionId) || rounds[i];
+    const accepted = round?.answerList || round?.answers || [];
+    const submitted = normalize(a.brand || "");
+    const answerRows = accepted.map(item => {
+      const isMine = submitted && normalize(item.name) === submitted;
+      const tier = getTierInfo(item.points);
+      return `<div class="answerbank-row ${isMine ? "mine" : ""}">
+        <span>${escapeHtml(item.name)}${isMine ? ' <b class="you-tag">YOUR ANSWER</b>' : ""}</span>
+        <small>${tier.icon} ${escapeHtml(tier.name)} · ${item.points} pts</small>
+      </div>`;
+    }).join("");
+    return `<details class="answeritem answer-review">
+      <summary><div><b>Stage ${i+1}: ${escapeHtml(a.question)}</b>
+        <small>${escapeHtml(a.answer)}${a.brand ? ` · ${a.tierIcon} ${escapeHtml(a.tierName)} (${a.points} pts)` : ""} · ${accepted.length} accepted answers</small></div>
+        <strong>+${formatMiles(a.miles)} MI</strong></summary>
+      <div class="answerbank">${answerRows || "<small>Answer review unavailable for this older challenge.</small>"}</div>
+    </details>`;
+  }).join("");
 
   $("againBtn").textContent = "BACK TO DAILY CHALLENGE ↻";
 }
 
-function finishGame(){
+async function finishGame(){
   clearInterval(timer);
   if(mode === "daily"){
-    saveDailyRun({
-      dateKey: getTodayKey(),
-      totalMiles,
-      answers
-    });
+    if(BLASTOFF_API_BASE){
+      try{await fetchRemoteAnswerReview();}
+      catch(error){toast("Flight saved, but answer review could not load yet.");}
+    }
+    saveDailyRun({dateKey:getTodayKey(),totalMiles,answers});
   }
   renderResultsScreen(false);
 }
@@ -2680,6 +2517,7 @@ function escapeHtml(s){
 }
 
 $("startBtn").onclick = () => startGame("daily");
+$("practiceBtn").onclick = () => startGame("practice");
 $("answerForm").addEventListener("submit", e => { e.preventDefault(); if(locked){ advanceStage(); return; } submitAnswer($("answer").value); });
 $("answer").addEventListener("input", () => {
   if(pendingSuggestion) clearSuggestion(true);

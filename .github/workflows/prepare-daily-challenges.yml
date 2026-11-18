@@ -1,0 +1,37 @@
+name: Prepare BLASTOFF daily challenges
+
+on:
+  push:
+    branches: [blastoff-development]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate 90 days of challenges
+        run: node scripts/generate-challenges.mjs
+      - name: Validate schedule, answer banks, and gameplay safeguards
+        run: node scripts/validate-challenges.mjs
+      - name: Commit prepared challenge bank
+        run: |
+          if git diff --quiet -- prepared_challenges.js prepared_challenges.json; then
+            echo "Prepared challenges are already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add prepared_challenges.js prepared_challenges.json
+          git commit -m "Refresh 90-day prepared challenge bank"
+          git push

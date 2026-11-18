@@ -1836,8 +1836,8 @@ function buildBellCurveHTML({ value, mean, std, context, uid }){
   return `
     <div class="curve-box">
       <div class="curve-head">
-        <span class="curve-rank">TOP ${label}%</span>
-        <span class="curve-desc">${value > 0 ? `Outperformed ${beaten}% of pilots · ${context}` : `0 mi thrust · ${context}`}</span>
+        <span class="curve-rank">EST. TOP ${label}%</span>
+        <span class="curve-desc">${value > 0 ? `Estimated score position · ${context}` : `No valid burns · ${context}`}</span>
       </div>
       <svg class="curve-svg" viewBox="0 0 ${W} 94" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Normal curve showing Top ${label}%">
         <defs>
@@ -2374,7 +2374,7 @@ function buildShareSummary(overallTopLabel){
   const dateLabel = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const modeLabel = mode === "daily" ? `Daily Mission — ${dateLabel}` : `Free Flight — ${dateLabel}`;
   const emojiRow = answers.map(a => a.tierIcon || "⬛").join(" ");
-  return `BLASTOFF 🚀 ${modeLabel}\n${formatMiles(totalMiles)} MILES · TOP ${overallTopLabel}%\n${emojiRow}`;
+  return `BLASTOFF 🚀 ${modeLabel}\n${formatMiles(totalMiles)} MILES · EST. TOP ${overallTopLabel}%\n${emojiRow}`;
 }
 
 async function copyMissionResult(){
@@ -2442,7 +2442,7 @@ function renderResultsScreen(isLockedRecap=false){
   $("shareStrip").textContent = answers.map(a => a.tierIcon || "⬛").join(" ");
 
   const storyText = bestBurn
-    ? `Your ship blasted out of Earth’s atmosphere and logged <b>${formatMiles(totalMiles)} miles</b> across ${TOTAL_ROUNDS} stages, placing you in the <b>Top ${overallTop.label}%</b> of all pilots. Your strongest ignition was <b>${escapeHtml(bestBurn.brand)}</b> (${bestBurn.tierIcon} <b>${escapeHtml(bestBurn.tierName)}</b>), propelling you <b>+${formatMiles(bestBurn.miles)} miles</b>.`
+    ? `Your ship blasted out of Earth’s atmosphere and logged <b>${formatMiles(totalMiles)} miles</b> across ${TOTAL_ROUNDS} stages, earning an <b>estimated Top ${overallTop.label}% score band</b> in BLASTOFF’s scoring model. Your strongest ignition was <b>${escapeHtml(bestBurn.brand)}</b> (${bestBurn.tierIcon} <b>${escapeHtml(bestBurn.tierName)}</b>), propelling you <b>+${formatMiles(bestBurn.miles)} miles</b>.`
     : `Your ship stayed on the launchpad with <b>0 miles</b> logged across ${TOTAL_ROUNDS} stages. Come back tomorrow for a new Daily Challenge.`;
 
   $("recapStory").innerHTML = storyText;
@@ -2459,9 +2459,9 @@ function renderResultsScreen(isLockedRecap=false){
       <span>Across ${TOTAL_ROUNDS} stages</span>
     </div>
     <div class="rstat">
-      <small>Round Percentile</small>
+      <small>Estimated Score Band</small>
       <strong>TOP ${overallTop.label}%</strong>
-      <span>Beat ${overallTop.beaten}% of launches</span>
+      <span>Based on BLASTOFF’s scoring model</span>
     </div>
   `;
 

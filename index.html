@@ -1078,6 +1078,7 @@ body.in-game .footer{display:none}
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="brands_data.js"></script>
 <script>
 const ROUND_SECONDS = 25, TOTAL_ROUNDS = 7, MILES_PER_POINT = 1000;
 
@@ -1326,6 +1327,93 @@ const ALIASES = {
   "bose":"bose","bno":"bangandolufsen","bangolufsen":"bangandolufsen","fb":"meta","facebook":"meta",
   "instagram":"meta","ig":"meta","yt":"google","youtube":"google","aws":"amazon"
 };
+
+// Merge generated Wikidata brands & aliases from brands_data.js without overwriting custom 100-pt Singularity picks
+(function mergeGeneratedDatabase(){
+  if(!window.SINGULARITY_DB || !window.SINGULARITY_DB.brands) return;
+
+  const extraCategories = [
+    {
+      dbKey: "airlines",
+      q: "Name a commercial airline.",
+      icon: "✈️",
+      keywords: ["airline", "airways", "aviation", "carrier", "flight", "jet", "air transport"],
+      brands: { "JetBlue": 50, "Spirit Airlines": 50, "Ryanair": 50, "easyJet": 50, "Porter Airlines": 75, "JSX": 100, "La Compagnie": 100 }
+    },
+    {
+      dbKey: "beverages",
+      q: "Name a soda, coffee, or beverage brand.",
+      icon: "🥤",
+      keywords: ["beverage", "soda", "soft drink", "coffee", "tea", "juice", "water", "energy drink", "beer", "brewery", "drink"],
+      brands: { "Coca-Cola": 10, "Pepsi": 10, "Gatorade": 10, "Red Bull": 10, "Monster Energy": 25, "Dr Pepper": 25, "Liquid Death": 50, "Olipop": 50, "Poppi": 50, "Guayakí": 75, "Bawls": 100, "Moxie": 100 }
+    },
+    {
+      dbKey: "video_games",
+      q: "Name a video game studio or console brand.",
+      icon: "🎮",
+      keywords: ["video game", "game developer", "game publisher", "console", "gaming", "esports", "interactive entertainment"],
+      brands: { "Nintendo": 10, "PlayStation": 10, "Xbox": 10, "EA": 10, "Activision": 25, "Ubisoft": 25, "Rockstar Games": 25, "Epic Games": 25, "Bethesda": 50, "FromSoftware": 50, "Supergiant Games": 75, "Larian Studios": 75, "Team Cherry": 100, "Devolver Digital": 100 }
+    },
+    {
+      dbKey: "retail_supermarkets",
+      q: "Name a retail store or supermarket chain.",
+      icon: "🛒",
+      keywords: ["retail", "supermarket", "grocery", "department store", "hypermarket", "store chain", "warehouse club"],
+      brands: { "Walmart": 10, "Target": 10, "Costco": 10, "Amazon": 10, "Trader Joe's": 25, "Aldi": 25, "Whole Foods": 25, "Publix": 50, "H-E-B": 50, "Wegmans": 50, "Erewhon": 75, "Piggly Wiggly": 75, "Stew Leonard's": 100, "Buc-ee's": 100 }
+    }
+  ];
+
+  extraCategories.forEach(ec => categories.push(ec));
+
+  const categoryMap = {
+    "fast_food": categories.find(c => c.q.includes("fast-food")),
+    "automotive": categories.find(c => c.q.includes("car manufacturer")),
+    "tech_software": categories.find(c => c.q.includes("technology company")),
+    "cosmetics": categories.find(c => c.q.includes("cosmetics or skincare")),
+    "airlines": categories.find(c => c.dbKey === "airlines"),
+    "beverages": categories.find(c => c.dbKey === "beverages"),
+    "video_games": categories.find(c => c.dbKey === "video_games"),
+    "retail_supermarkets": categories.find(c => c.dbKey === "retail_supermarkets")
+  };
+
+  // Track existing normalized keys per category so custom scores (like 100-pt Singularity picks) stay untouched
+  const existingKeys = new Map();
+  for(const cat of categories){
+    const set = new Set();
+    for(const name of Object.keys(cat.brands)){
+      const k = normalize(name);
+      set.add(ALIASES[k] || k);
+    }
+    existingKeys.set(cat, set);
+  }
+
+  for(const brand of Object.values(window.SINGULARITY_DB.brands)){
+    const canonicalNorm = normalize(brand.name);
+    if(!canonicalNorm || canonicalNorm.length < 2) continue;
+    const resolvedCanonical = ALIASES[canonicalNorm] || canonicalNorm;
+
+    // Register Wikidata alternate names into ALIASES
+    if(Array.isArray(brand.keys)){
+      for(const rawAlias of brand.keys){
+        const aliasNorm = normalize(rawAlias);
+        if(aliasNorm && aliasNorm !== resolvedCanonical && !ALIASES[aliasNorm]){
+          ALIASES[aliasNorm] = resolvedCanonical;
+        }
+      }
+    }
+
+    // Add brand into each matching category
+    for(const dbCat of (brand.categories || [])){
+      const targetCat = categoryMap[dbCat];
+      if(!targetCat) continue;
+      const seen = existingKeys.get(targetCat);
+      if(!seen.has(resolvedCanonical)){
+        targetCat.brands[brand.name] = scoreFromSitelinks(brand.popularity || 25);
+        seen.add(resolvedCanonical);
+      }
+    }
+  }
+})();
 
 const BRAND_QIDS = new Set([
   "Q4830453","Q431289","Q783794","Q167270","Q6881511","Q891723","Q1589009",

@@ -1243,10 +1243,10 @@ const categories = [
   },
   {
     baseKey: "fast_food",
-    q: "Name a fast-food restaurant chain.",
+    q: "Name a fast-food, convenience, or restaurant chain.",
     comboTopic: "fast-food or restaurant chain",
     icon: "🍔",
-    keywords: ["fast food", "fast-food", "restaurant", "burger", "pizza", "chicken", "taco", "sandwich", "coffee", "bakery", "diner", "drive-thru", "food chain", "quick-service", "sub", "cafe", "café", "wings", "ice cream", "smoothie", "donuts", "doughnut", "burrito"],
+    keywords: ["fast food", "fast-food", "convenience store", "travel center", "restaurant", "burger", "pizza", "chicken", "taco", "sandwich", "coffee", "bakery", "diner", "drive-thru", "food chain", "quick-service", "sub", "cafe", "café", "wings", "ice cream", "smoothie", "donuts", "doughnut", "burrito"],
     brands: {
       "McDonald's":10,"Burger King":10,"Wendy's":10,"Taco Bell":10,"Subway":10,"KFC":10,"Starbucks":10,"Domino's":10,"Chick-fil-A":10,
       "Popeyes":25,"Chipotle":25,"Pizza Hut":25,"Five Guys":25,"Dairy Queen":25,"Little Caesars":25,
@@ -1257,7 +1257,7 @@ const categories = [
       "Auntie Anne's":50,"Cinnabon":50,"Baskin-Robbins":50,"Cold Stone Creamery":50,"Jamba Juice":50,
       "Smoothie King":50,"Qdoba":50,"Moe's Southwest Grill":50,"Del Taco":50,"El Pollo Loco":50,
       "Checkers":50,"Rally's":50,"Long John Silver's":50,"Blaze Pizza":50,"MOD Pizza":50,
-      "Steak 'n Shake":50,"Smashburger":50,"Freddy's":50,"Portillo's":50,"Jollibee":50,"Nando's":50,"Dave's Hot Chicken":50,
+      "Steak 'n Shake":50,"Smashburger":50,"Freddy's":50,"Portillo's":50,"Jollibee":50,"Nando's":50,"Dave's Hot Chicken":50, "Buc-ee's":50,
       "Captain D's":75,"Noodles & Company":75,"Marco's Pizza":75,"Jet's Pizza":75,"Wienerschnitzel":75,
       "Greggs":75,"Pret A Manger":75,"Mos Burger":75,"Yoshinoya":75,"Sukiya":75,"CoCo Ichibanya":75,
       "Luckin Coffee":75,"Pollo Campero":75,"Pollo Tropical":75,"Cook Out":75,"Krystal":75,"Taco John's":75,
@@ -2469,7 +2469,7 @@ async function submitAnswer(raw=""){
     return;
   }
 
-  if(!found.exact && found.source === "local" && found.dist === 1 && normalize(answer).length >= 7){
+  if(!found.exact && (found.source === "local" || found.source === "registry") && found.dist === 1 && normalize(answer).length >= 7){
     found.exact = true;
   }
 
